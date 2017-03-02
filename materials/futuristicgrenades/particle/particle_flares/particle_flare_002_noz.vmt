@@ -1,0 +1,10 @@
+UnlitGeneric
+{
+$basetexture "futuristicgrenades\particle\particle_flares\particle_flare_002"
+$translucent 1
+$depthblend 0
+
+$additive 1
+$vertexalpha 1
+$vertexcolor 1
+}

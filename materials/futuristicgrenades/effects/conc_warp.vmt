@@ -1,0 +1,15 @@
+"Refract"
+{
+ 	"$normalmap" "futuristicgrenades/effects/conc_normal"
+ 	"$refractamount" "-.2"
+	 "$refracttint" "[0 0 0]"
+	"$vertexalpha" "1"
+	"$vertexcolor" "1"
+	"$translucent" "1"
+	"$forcerefract" 1
+//	"$ignorez" "1"
+ 	"$bluramount" "1"
+	"$nofog" "1"
+	"$refracttinttexture" "futuristicgrenades/effects/conc_tint"
+	"$vertexcolormodulate" "1"
+}
