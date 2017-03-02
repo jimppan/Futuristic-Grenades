@@ -126,7 +126,7 @@ public Plugin myinfo =
 {
 	name = "Futuristic Grenades",
 	author = PLUGIN_AUTHOR,
-	description = "Adds more options for decoys",
+	description = "Adds more modes for decoys grenades",
 	version = PLUGIN_VERSION,
 	url = "https://github.com/Rachnus"
 };
@@ -147,14 +147,14 @@ public void OnPluginStart()
 	//GENERAL CONVARS
 	g_UseDecoyModel = 				CreateConVar("fg_decoy_model", "1", "Whether or not to use custom model for decoy", FCVAR_NOTIFY);
 	g_Enable = 						CreateConVar("fg_enabled", "1", "Enable/Disable plugin", FCVAR_NOTIFY);
-	g_FriendlyFire =				CreateConVar("fg_friendlyfire", "1", "Enable/Disable plugin", FCVAR_NOTIFY);
+	g_FriendlyFire =				CreateConVar("fg_friendlyfire", "1", "Enable/Disable friendly fire", FCVAR_NOTIFY);
 
 	//BLACKHOLE CONVARS
 	g_BlackholeEnabled = 			CreateConVar("fg_blackhole_enabled", "1", "Enable/Disable blackholes", FCVAR_NOTIFY);
 	g_BlackholeParticleEffect =		CreateConVar("fg_blackhole_particle_effect", "blackhole", "Name of the particle effect you want to use for blackholes", FCVAR_NOTIFY);
 	g_BlackholeMinimumDistance = 	CreateConVar("fg_blackhole_minimum_distance", "250", "Minimum distance to push player towards black hole", FCVAR_NOTIFY);
 	g_BlackholeBounceVelocity = 	CreateConVar("fg_blackhole_bounce_velocity", "300", "Up/Down velocity to push the grenade on bounce", FCVAR_NOTIFY);
-	g_BlackholeShakePlayer = 		CreateConVar("fg_blackhole_shake_player", "1", "Whether or not to shake the player once entering minimum distance", FCVAR_NOTIFY);
+	g_BlackholeShakePlayer = 		CreateConVar("fg_blackhole_shake_player", "1", "Shake the player once entering minimum distance", FCVAR_NOTIFY);
 	g_BlackholeShakeIntensity =		CreateConVar("fg_blackhole_shake_intensity", "5.0", "Intensity of the shake", FCVAR_NOTIFY);
 	g_BlackholeFrequency =			CreateConVar("fg_blackhole_shake_frequency", "0.7", "Frequency of the shake", FCVAR_NOTIFY);
 	g_BlackholeForce = 				CreateConVar("fg_blackhole_force", "350", "Force to fly at the black hole", FCVAR_NOTIFY); 
@@ -166,7 +166,7 @@ public void OnPluginStart()
 	g_BlackholeGrenades = 			CreateConVar("fg_blackhole_hegrenades", "1", "Push active hand grenades towards black hole", FCVAR_NOTIFY);
 	g_BlackholeFlashbangs =			CreateConVar("fg_blackhole_flashbangs", "1", "Push active flashbangs towards black hole", FCVAR_NOTIFY);
 	g_BlackholeSmokes = 			CreateConVar("fg_blackhole_smokes", "1", "Push active smoke grenades towards black hole", FCVAR_NOTIFY);
-	g_BlackholeIndicator = 			CreateConVar("fg_blackhole_indicator", "0", "Whether or not to indicate minimum distance to push player towards black hole", FCVAR_NOTIFY);
+	g_BlackholeIndicator = 			CreateConVar("fg_blackhole_indicator", "0", "Indicate minimum distance to push player towards black hole", FCVAR_NOTIFY);
 	
 	//FORCEFIELD CONVARS
 	g_ForcefieldEnabled =  			CreateConVar("fg_forcefield_enabled", "1", "Enable/Disable forcefields", FCVAR_NOTIFY);
@@ -179,7 +179,7 @@ public void OnPluginStart()
 	g_ForcefieldGrenades = 			CreateConVar("fg_forcefield_hegrenades", "1", "Push active hand grenades away from forcefield", FCVAR_NOTIFY);
 	g_ForcefieldFlashbangs =		CreateConVar("fg_forcefield_flashbangs", "1", "Push active flashbangs away from forcefield", FCVAR_NOTIFY);
 	g_ForcefieldSmokes = 			CreateConVar("fg_forcefield_smokes", "1", "Push active smoke grenades away from forcefield", FCVAR_NOTIFY);
-	g_ForcefieldIndicator = 		CreateConVar("fg_forcefield_indicator", "1", "Whether or not to indicate minimum distance to push player away from force field", FCVAR_NOTIFY);
+	g_ForcefieldIndicator = 		CreateConVar("fg_forcefield_indicator", "1", "Indicate minimum distance to push player away from force field", FCVAR_NOTIFY);
 	
 	//FORCE EXPLOSION CONVARS
 	g_ExplosionEnabled =  			CreateConVar("fg_explosion_enabled", "1", "Enable/Disable force explosions", FCVAR_NOTIFY);
@@ -191,11 +191,11 @@ public void OnPluginStart()
 	g_ExplosionGrenades =			CreateConVar("fg_explosion_hegrenades", "1", "Push active hand grenades away from force explosions", FCVAR_NOTIFY);
 	g_ExplosionFlashbangs =			CreateConVar("fg_explosion_flashbangs", "1", "Push active flashbangs away from force explosions", FCVAR_NOTIFY);
 	g_ExplosionSmokes =				CreateConVar("fg_explosion_smokes", "1", "Push active smoke grenades away from force explosions", FCVAR_NOTIFY);
-	g_ExplosionBounce =				CreateConVar("fg_explosion_bounce", "0", "Whether or not to bounce the grenade before activating", FCVAR_NOTIFY);
+	g_ExplosionBounce =				CreateConVar("fg_explosion_bounce", "0", "Bounce the grenade before activating", FCVAR_NOTIFY);
 	g_ExplosionBounceVelocity =		CreateConVar("fg_explosion_bounce_velocity", "300", "Up/Down velocity to push the grenade on bounce (If fg_explosion_bounce enabled)", FCVAR_NOTIFY);
 	
 	//FORCE IMPLOSION CONVARS
-	g_ImplosionEnabled = 			CreateConVar("fg_implosion_enabled", "1", "Enable/Disable force implosion", FCVAR_NOTIFY);
+	g_ImplosionEnabled = 			CreateConVar("fg_implosion_enabled", "1", "Enable/Disable force implosions", FCVAR_NOTIFY);
 	g_ImplosionParticleEffect =		CreateConVar("fg_implosion_particle_effect", "implosion", "Name of the particle effect you want to use for force implosions", FCVAR_NOTIFY);
 	g_ImplosionMinimumDistance = 	CreateConVar("fg_implosion_minimum_distance", "500", "Minimum distance to push player towards force implosions", FCVAR_NOTIFY);
 	g_ImplosionProps =				CreateConVar("fg_implosion_props", "1", "Push props towards force implosions", FCVAR_NOTIFY);
@@ -203,7 +203,7 @@ public void OnPluginStart()
 	g_ImplosionGrenades =			CreateConVar("fg_implosion_hegrenades", "1", "Push active hand grenades towards force implosions", FCVAR_NOTIFY);
 	g_ImplosionFlashbangs =			CreateConVar("fg_implosion_flashbangs", "1", "Push active flashbangs towards force implosions", FCVAR_NOTIFY);
 	g_ImplosionSmokes =				CreateConVar("fg_implosion_smokes", "1", "Push active smoke grenades towards force implosions", FCVAR_NOTIFY);
-	g_ImplosionBounce =				CreateConVar("fg_implosion_bounce", "0", "Whether or not to bounce the grenade before activating", FCVAR_NOTIFY);
+	g_ImplosionBounce =				CreateConVar("fg_implosion_bounce", "0", "Bounce the grenade before activating", FCVAR_NOTIFY);
 	g_ImplosionBounceVelocity =		CreateConVar("fg_implosion_bounce_velocity", "300", "Up/Down velocity to push the grenade on bounce (If fg_implosion_bounce enabled)", FCVAR_NOTIFY);
 	
 	HookConVarChange(g_UseDecoyModel, ConVar_DecoyModel);
