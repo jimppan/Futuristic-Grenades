@@ -444,36 +444,39 @@ void UpdateBlackHoles()
 {
 	for (int index = 0; index < g_Blackholes.Length; index++)
 	{
-		for (int client = 1; client <= MaxClients; client++)
+		if(IsValidEntity(g_Blackholes.Get(index)))
 		{
-			if(IsClientInGame(client) && IsPlayerAlive(client))
+			for (int client = 1; client <= MaxClients; client++)
 			{
-				if(!g_FriendlyFire.BoolValue)
+				if(IsClientInGame(client) && IsPlayerAlive(client))
 				{
-					int owner = GetEntPropEnt(g_Blackholes.Get(index), Prop_Data, "m_hOwnerEntity");
-					int ownerteam = GetClientTeam(owner);
-					if((ownerteam != GetClientTeam(client)) || client == owner)
+					if(!g_FriendlyFire.BoolValue)
+					{
+						int owner = GetEntPropEnt(g_Blackholes.Get(index), Prop_Data, "m_hOwnerEntity");
+						int ownerteam = GetClientTeam(owner);
+						if((ownerteam != GetClientTeam(client)) || client == owner)
+							PushPlayersToBlackHole(client, index);
+					}
+					else
 						PushPlayersToBlackHole(client, index);
 				}
-				else
-					PushPlayersToBlackHole(client, index);
 			}
-		}
-	
-		if(g_BlackholeProps.BoolValue)
-			PushToBlackHole(index, "prop_physics*");
-			
-		if(g_BlackholeWeapons.BoolValue)
-			PushToBlackHole(index, "weapon_*");
 		
-		if(g_BlackholeGrenades.BoolValue)
-			PushToBlackHole(index, "hegrenade_projectile");
-
-		if(g_BlackholeFlashbangs.BoolValue)
-			PushToBlackHole(index, "flashbang_projectile");
+			if(g_BlackholeProps.BoolValue)
+				PushToBlackHole(index, "prop_physics*");
+				
+			if(g_BlackholeWeapons.BoolValue)
+				PushToBlackHole(index, "weapon_*");
+			
+			if(g_BlackholeGrenades.BoolValue)
+				PushToBlackHole(index, "hegrenade_projectile");
 	
-		if(g_BlackholeSmokes.BoolValue)
-			PushToBlackHole(index, "smokegrenade_projectile");
+			if(g_BlackholeFlashbangs.BoolValue)
+				PushToBlackHole(index, "flashbang_projectile");
+		
+			if(g_BlackholeSmokes.BoolValue)
+				PushToBlackHole(index, "smokegrenade_projectile");	
+		}
 	}
 }
 
@@ -481,44 +484,47 @@ void UpdateForceFields()
 {
 	for (int index = 0; index < g_Forcefields.Length; index++)
 	{
-		for (int client = 1; client <= MaxClients; client++)
+		if(IsValidEntity(g_Forcefields.Get(index)))
 		{
-			if(IsClientInGame(client) && IsPlayerAlive(client))
+			for (int client = 1; client <= MaxClients; client++)
 			{
-				if(!g_FriendlyFire.BoolValue)
+				if(IsClientInGame(client) && IsPlayerAlive(client))
 				{
-					int owner = GetEntPropEnt(g_Forcefields.Get(index), Prop_Data, "m_hOwnerEntity");
-					int ownerteam = GetClientTeam(owner);
-					
-					if(ownerteam != GetClientTeam(client) || (client == owner && g_eForcefieldMode[owner] == ForcefieldMode_Self))
-						PushPlayersAwayFromForceField(client, index);
-				}
-				else
-				{
-					int owner = GetEntPropEnt(g_Forcefields.Get(index), Prop_Data, "m_hOwnerEntity");
-					if(client == owner)
+					if(!g_FriendlyFire.BoolValue)
 					{
-						if(g_eForcefieldMode[owner] == ForcefieldMode_Self)
+						int owner = GetEntPropEnt(g_Forcefields.Get(index), Prop_Data, "m_hOwnerEntity");
+						int ownerteam = GetClientTeam(owner);
+						
+						if(ownerteam != GetClientTeam(client) || (client == owner && g_eForcefieldMode[owner] == ForcefieldMode_Self))
 							PushPlayersAwayFromForceField(client, index);
 					}
 					else
-						PushPlayersAwayFromForceField(client, index);
+					{
+						int owner = GetEntPropEnt(g_Forcefields.Get(index), Prop_Data, "m_hOwnerEntity");
+						if(client == owner)
+						{
+							if(g_eForcefieldMode[owner] == ForcefieldMode_Self)
+								PushPlayersAwayFromForceField(client, index);
+						}
+						else
+							PushPlayersAwayFromForceField(client, index);
+					}
 				}
-			}
-		}				
-			
-	
-		if(g_ForcefieldProps.BoolValue)
-			PushAwayFromForceField(index, "prop_physics*");
+			}				
+				
 		
-		if(g_ForcefieldGrenades.BoolValue)
-			PushAwayFromForceField(index, "hegrenade_projectile");
-
-		if(g_ForcefieldFlashbangs.BoolValue)
-			PushAwayFromForceField(index, "flashbang_projectile");
+			if(g_ForcefieldProps.BoolValue)
+				PushAwayFromForceField(index, "prop_physics*");
+			
+			if(g_ForcefieldGrenades.BoolValue)
+				PushAwayFromForceField(index, "hegrenade_projectile");
 	
-		if(g_ForcefieldSmokes.BoolValue)
-			PushAwayFromForceField(index, "smokegrenade_projectile");
+			if(g_ForcefieldFlashbangs.BoolValue)
+				PushAwayFromForceField(index, "flashbang_projectile");
+		
+			if(g_ForcefieldSmokes.BoolValue)
+				PushAwayFromForceField(index, "smokegrenade_projectile");	
+		}
 	}
 }
 
