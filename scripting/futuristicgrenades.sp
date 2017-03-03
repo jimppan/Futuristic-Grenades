@@ -68,7 +68,7 @@ ConVar g_UseDecoyModel;
 ConVar g_Enable;
 ConVar g_FriendlyFire;
 //BLACKHOLE
-ConVar g_BlackholeEnabled;
+ConVar g_BlackholeFlags;
 ConVar g_BlackholeParticleEffect;
 ConVar g_BlackholeMinimumDistance;
 ConVar g_BlackholeBounceVelocity;
@@ -86,7 +86,7 @@ ConVar g_BlackholeFlashbangs;
 ConVar g_BlackholeSmokes;
 ConVar g_BlackholeIndicator;
 //FORCEFIELD
-ConVar g_ForcefieldEnabled;
+ConVar g_ForcefieldFlags;
 ConVar g_ForcefieldParticleEffect;
 ConVar g_ForcefieldMinimumDistance;
 ConVar g_ForcefieldBounceVelocity;
@@ -98,7 +98,7 @@ ConVar g_ForcefieldFlashbangs;
 ConVar g_ForcefieldSmokes;
 ConVar g_ForcefieldIndicator;
 //FORCE EXPLOSION
-ConVar g_ExplosionEnabled;
+ConVar g_ExplosionFlags;
 ConVar g_ExplosionParticleEffect;
 ConVar g_ExplosionMinimumDistance;
 ConVar g_ExplosionForce;
@@ -111,7 +111,7 @@ ConVar g_ExplosionBounce;
 ConVar g_ExplosionBounceVelocity;
 
 //FORCE IMPLOSION
-ConVar g_ImplosionEnabled;
+ConVar g_ImplosionFlags;
 ConVar g_ImplosionParticleEffect;
 ConVar g_ImplosionMinimumDistance;
 ConVar g_ImplosionProps;
@@ -137,8 +137,8 @@ public void OnPluginStart()
 	if(g_Game != Engine_CSGO)
 	{
 		SetFailState("This plugin is for CSGO only.");	
-	}
-
+	}	
+	
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("decoy_started", Event_DecoyStarted, EventHookMode_Pre);
@@ -150,7 +150,7 @@ public void OnPluginStart()
 	g_FriendlyFire =				CreateConVar("fg_friendlyfire", "1", "Enable/Disable friendly fire", FCVAR_NOTIFY);
 
 	//BLACKHOLE CONVARS
-	g_BlackholeEnabled = 			CreateConVar("fg_blackhole_enabled", "1", "Enable/Disable blackholes", FCVAR_NOTIFY);
+	g_BlackholeFlags = 			    CreateConVar("fg_blackhole_flags", "", "Specify what flags has access to black holes (Blank for everyone)", FCVAR_NOTIFY);
 	g_BlackholeParticleEffect =		CreateConVar("fg_blackhole_particle_effect", "blackhole", "Name of the particle effect you want to use for blackholes", FCVAR_NOTIFY);
 	g_BlackholeMinimumDistance = 	CreateConVar("fg_blackhole_minimum_distance", "250", "Minimum distance to push player towards black hole", FCVAR_NOTIFY);
 	g_BlackholeBounceVelocity = 	CreateConVar("fg_blackhole_bounce_velocity", "300", "Up/Down velocity to push the grenade on bounce", FCVAR_NOTIFY);
@@ -169,7 +169,7 @@ public void OnPluginStart()
 	g_BlackholeIndicator = 			CreateConVar("fg_blackhole_indicator", "0", "Indicate minimum distance to push player towards black hole", FCVAR_NOTIFY);
 	
 	//FORCEFIELD CONVARS
-	g_ForcefieldEnabled =  			CreateConVar("fg_forcefield_enabled", "1", "Enable/Disable forcefields", FCVAR_NOTIFY);
+	g_ForcefieldFlags = 			CreateConVar("fg_forcefield_flags", "", "Specify what flags has access to force fields (Blank for everyone)", FCVAR_NOTIFY);
 	g_ForcefieldParticleEffect =	CreateConVar("fg_forcefield_particle_effect", "forcefield", "Name of the particle effect you want to use for forcefields", FCVAR_NOTIFY);
 	g_ForcefieldMinimumDistance = 	CreateConVar("fg_forcefield_minimum_distance", "300", "Minimum distance to push player away from forcefield", FCVAR_NOTIFY);
 	g_ForcefieldBounceVelocity = 	CreateConVar("fg_forcefield_bounce_velocity", "300", "Up/Down velocity to push the grenade on bounce", FCVAR_NOTIFY);
@@ -182,7 +182,7 @@ public void OnPluginStart()
 	g_ForcefieldIndicator = 		CreateConVar("fg_forcefield_indicator", "1", "Indicate minimum distance to push player away from force field", FCVAR_NOTIFY);
 	
 	//FORCE EXPLOSION CONVARS
-	g_ExplosionEnabled =  			CreateConVar("fg_explosion_enabled", "1", "Enable/Disable force explosions", FCVAR_NOTIFY);
+	g_ExplosionFlags = 			    CreateConVar("fg_explosion_flags", "", "Specify what flags has access to explosions (Blank for everyone)", FCVAR_NOTIFY);
 	g_ExplosionParticleEffect =		CreateConVar("fg_explosion_particle_effect", "explosion", "Name of the particle effect you want to use for force explosions", FCVAR_NOTIFY);
 	g_ExplosionMinimumDistance =	CreateConVar("fg_explosion_minimum_distance", "300", "Minimum distance to push player away from force explosions", FCVAR_NOTIFY);
 	g_ExplosionForce =				CreateConVar("fg_explosion_force", "800", "Force to push away from force explosions", FCVAR_NOTIFY); 
@@ -195,7 +195,7 @@ public void OnPluginStart()
 	g_ExplosionBounceVelocity =		CreateConVar("fg_explosion_bounce_velocity", "300", "Up/Down velocity to push the grenade on bounce (If fg_explosion_bounce enabled)", FCVAR_NOTIFY);
 	
 	//FORCE IMPLOSION CONVARS
-	g_ImplosionEnabled = 			CreateConVar("fg_implosion_enabled", "1", "Enable/Disable force implosions", FCVAR_NOTIFY);
+	g_ImplosionFlags = 			    CreateConVar("fg_implosion_flags", "", "Specify what flags has access to implosions (Blank for everyone)", FCVAR_NOTIFY);
 	g_ImplosionParticleEffect =		CreateConVar("fg_implosion_particle_effect", "implosion", "Name of the particle effect you want to use for force implosions", FCVAR_NOTIFY);
 	g_ImplosionMinimumDistance = 	CreateConVar("fg_implosion_minimum_distance", "500", "Minimum distance to push player towards force implosions", FCVAR_NOTIFY);
 	g_ImplosionProps =				CreateConVar("fg_implosion_props", "1", "Push props towards force implosions", FCVAR_NOTIFY);
@@ -329,15 +329,29 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		{
 			if(g_eMode[client] < DecoyMode_Max - view_as<DecoyMode>(1))
 			{
+				char flags[32];
+				int flagbits;
+				
 				while(g_eMode[client]++ < DecoyMode_Max)
 				{
-					if(g_eMode[client] == DecoyMode_Blackhole && (g_BlackholeEnabled.BoolValue || CheckCommandAccess(client, "", ADMFLAG_BAN, true)))
+					g_BlackholeFlags.GetString(flags, sizeof(flags));
+					flagbits = ReadFlagString(flags);
+					if(g_eMode[client] == DecoyMode_Blackhole && (GetUserFlagBits(client) & flagbits || CheckCommandAccess(client, "", ADMFLAG_ROOT, true) || !flagbits))
 						break;
-					if(g_eMode[client] == DecoyMode_Forcefield && (g_ForcefieldEnabled.BoolValue || CheckCommandAccess(client, "", ADMFLAG_BAN, true)))
+						
+					g_ForcefieldFlags.GetString(flags, sizeof(flags));
+					flagbits = ReadFlagString(flags);
+					if(g_eMode[client] == DecoyMode_Forcefield && (GetUserFlagBits(client) & flagbits || CheckCommandAccess(client, "", ADMFLAG_ROOT, true) || !flagbits))
 						break;
-					if(g_eMode[client] == DecoyMode_ForceExplosion && (g_ExplosionEnabled.BoolValue || CheckCommandAccess(client, "", ADMFLAG_BAN, true)))
+						
+					g_ExplosionFlags.GetString(flags, sizeof(flags));
+					flagbits = ReadFlagString(flags);
+					if(g_eMode[client] == DecoyMode_ForceExplosion && (GetUserFlagBits(client) & flagbits || CheckCommandAccess(client, "", ADMFLAG_ROOT, true) || !flagbits))
 						break;
-					if(g_eMode[client] == DecoyMode_ForceImplosion && (g_ImplosionEnabled.BoolValue ||CheckCommandAccess(client, "", ADMFLAG_BAN, true)))
+					
+					g_ImplosionFlags.GetString(flags, sizeof(flags));
+					flagbits = ReadFlagString(flags);
+					if(g_eMode[client] == DecoyMode_ForceImplosion && (GetUserFlagBits(client) & flagbits || CheckCommandAccess(client, "", ADMFLAG_ROOT, true) || !flagbits))
 						break;
 				}
 			}
@@ -613,7 +627,6 @@ void PushPlayersToBlackHole(int client, int index)
 				
 			SetEntPropEnt(client, Prop_Data, "m_hGroundEntity", -1);
 
-			//SetEntityGravity(client, 0.0);
 			float direction[3];
 			SubtractVectors(blackholePos, clientPos, direction);
 			
