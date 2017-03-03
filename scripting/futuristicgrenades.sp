@@ -3,7 +3,7 @@
 #define DEBUG
 
 #define PLUGIN_AUTHOR "Rachnus"
-#define PLUGIN_VERSION "1.2"
+#define PLUGIN_VERSION "1.2.1"
 
 #include <sourcemod>
 #include <sdktools>
@@ -50,7 +50,7 @@ enum ForceImplosionMode
 
 EngineVersion g_Game;
 int g_PVMid[MAXPLAYERS + 1]; // Predicted ViewModel ID's
-DecoyMode g_eMode[MAXPLAYERS + 1] =  { DecoyMode_Blackhole, ... };
+DecoyMode g_eMode[MAXPLAYERS + 1] =  { DecoyMode_Normal, ... };
 ForceFieldMode g_eForcefieldMode[MAXPLAYERS + 1] =  { ForcefieldMode_Normal, ... };
 ForceExplosionMode g_eForceExplosionMode[MAXPLAYERS + 1] =  { ForceExplosionMode_Ground, ... };
 ForceImplosionMode g_eForceImplosionMode[MAXPLAYERS + 1] =  { ForceImplosionMode_Ground, ... };
@@ -142,7 +142,7 @@ public void OnPluginStart()
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("decoy_started", Event_DecoyStarted, EventHookMode_Pre);
-
+	//RegConsoleCmd("sm_test", Command_Test);
 	RegConsoleCmd("fg_ff", Command_FriendlyFire);
 	//GENERAL CONVARS
 	g_UseDecoyModel = 				CreateConVar("fg_decoy_model", "1", "Whether or not to use custom model for decoy", FCVAR_NOTIFY);
@@ -453,6 +453,20 @@ void UpdateBlackHoles()
 					if(!g_FriendlyFire.BoolValue)
 					{
 						int owner = GetEntPropEnt(g_Blackholes.Get(index), Prop_Data, "m_hOwnerEntity");
+						if(owner < 1 || owner > MaxClients)
+						{
+							g_Blackholes.Erase(index);
+							AcceptEntityInput(g_Blackholes.Get(index), "Kill");
+							break;
+						}
+						
+						if(!IsClientInGame(owner))
+						{
+							g_Blackholes.Erase(index);
+							AcceptEntityInput(g_Blackholes.Get(index), "Kill");
+							break;
+						}
+							
 						int ownerteam = GetClientTeam(owner);
 						if((ownerteam != GetClientTeam(client)) || client == owner)
 							PushPlayersToBlackHole(client, index);
@@ -477,6 +491,8 @@ void UpdateBlackHoles()
 			if(g_BlackholeSmokes.BoolValue)
 				PushToBlackHole(index, "smokegrenade_projectile");	
 		}
+		else
+			g_Blackholes.Erase(index);		
 	}
 }
 
@@ -493,6 +509,21 @@ void UpdateForceFields()
 					if(!g_FriendlyFire.BoolValue)
 					{
 						int owner = GetEntPropEnt(g_Forcefields.Get(index), Prop_Data, "m_hOwnerEntity");
+						
+						if(owner < 1 || owner > MaxClients)
+						{
+							g_Forcefields.Erase(index);
+							AcceptEntityInput(g_Forcefields.Get(index), "Kill");
+							break;
+						}
+						
+						if(!IsClientInGame(owner))
+						{
+							g_Forcefields.Erase(index);
+							AcceptEntityInput(g_Forcefields.Get(index), "Kill");
+							break;
+						}
+						
 						int ownerteam = GetClientTeam(owner);
 						
 						if(ownerteam != GetClientTeam(client) || (client == owner && g_eForcefieldMode[owner] == ForcefieldMode_Self))
@@ -525,6 +556,8 @@ void UpdateForceFields()
 			if(g_ForcefieldSmokes.BoolValue)
 				PushAwayFromForceField(index, "smokegrenade_projectile");	
 		}
+		else
+			g_Forcefields.Erase(index);
 	}
 }
 
@@ -781,6 +814,12 @@ void PushToImplosion(int entity, const char[] classname)
 		}
 	}
 }
+/*
+public Action Command_Test(int client, int args)
+{
+	PrintToChatAll("LENGTH: %d", g_Blackholes.Length);
+}
+*/
 
 public void OnEntityCreated(int entity, const char[] classname)
 {		
@@ -813,13 +852,13 @@ public Action DecoySpawned(int entity)
 			SetEntPropString(entity, Prop_Data, "m_iName", "explosion");
 		else if(g_eMode[owner] == DecoyMode_ForceImplosion)
 			SetEntPropString(entity, Prop_Data, "m_iName", "implosion");
+				
+		if(g_UseDecoyModel.BoolValue)
+			SetEntityModel(entity, "models/weapons/futuristicgrenades/w_eq_decoy.mdl");
+	
+		SDKHook(entity, SDKHook_TouchPost, DecoyTouchPost);
 	}
 
-	if(g_UseDecoyModel.BoolValue)
-		SetEntityModel(entity, "models/weapons/futuristicgrenades/w_eq_decoy.mdl");
-
-	SDKHook(entity, SDKHook_TouchPost, DecoyTouchPost);
-	
 	return Plugin_Continue;
 }
 
@@ -829,9 +868,16 @@ public Action DecoyTouchPost(int entity, int other)
 	{
 		char name[16];
 		GetEntPropString(entity, Prop_Data, "m_iName", name, sizeof(name));
+		int owner = GetEntPropEnt(entity, Prop_Data, "m_hOwnerEntity");
+		
+		if(owner < 1 || owner > MaxClients)
+			AcceptEntityInput(entity, "Kill");
+		
+		if(!IsClientInGame(owner))
+			AcceptEntityInput(entity, "Kill");
+			
 		if(StrEqual(name, "explosion", false))
 		{
-			int owner = GetEntPropEnt(entity, Prop_Data, "m_hOwnerEntity");
 			if(g_eForceExplosionMode[owner] == ForceExplosionMode_Ground)
 			{
 				float vecPos[3], startPoint[3], endPoint[3], slopeAngle[3];
@@ -865,7 +911,6 @@ public Action DecoyTouchPost(int entity, int other)
 		}
 		else if(StrEqual(name, "implosion", false))
 		{
-			int owner = GetEntPropEnt(entity, Prop_Data, "m_hOwnerEntity");
 			if(g_eForceImplosionMode[owner] == ForceImplosionMode_Ground)
 			{
 				float vecPos[3], startPoint[3], endPoint[3], slopeAngle[3];
@@ -1000,11 +1045,17 @@ void SpawnEffect(int entity)
 	float interval = 10.0;
 	float nadeOrigin[3];
 	GetEntPropVector(entity, Prop_Send, "m_vecOrigin", nadeOrigin);
-	
-	
 	int volumeIndex;
+	
+	int owner = GetEntPropEnt(entity, Prop_Data, "m_hOwnerEntity");
+	if(owner < 1 || owner > MaxClients)
+		return;
+	
+	if(!IsClientInGame(owner))
+		return;
+		
 	int particle = CreateEntityByName("info_particle_system");
-	SetEntPropEnt(particle, Prop_Data, "m_hOwnerEntity", GetEntPropEnt(entity, Prop_Data, "m_hOwnerEntity"));
+	SetEntPropEnt(particle, Prop_Data, "m_hOwnerEntity", owner);
 	SetEntPropString(particle, Prop_Data, "m_iName", entityName);
 	AcceptEntityInput(entity, "Kill");
 	if(StrEqual(entityName, "blackhole", false))
@@ -1018,7 +1069,7 @@ void SpawnEffect(int entity)
 		if(g_BlackholeIndicator.BoolValue)
 		{
 			int color[4] =  { 0, 0, 255, 255 };
-			TE_SetupBeamRingPoint(nadeOrigin, (g_ForcefieldMinimumDistance.FloatValue + 80.0)*1.4, (g_ForcefieldMinimumDistance.FloatValue + 81.0)*1.4, g_iPathLaserModelIndex, g_iPathLaserModelIndex, 0, 15, g_ForcefieldDuration.FloatValue, 10.0, 10.0, color, 1, 0);
+			TE_SetupBeamRingPoint(nadeOrigin, (g_BlackholeMinimumDistance.FloatValue + 80.0)*1.4, (g_BlackholeMinimumDistance.FloatValue + 81.0)*1.4, g_iPathLaserModelIndex, g_iPathLaserModelIndex, 0, 15, g_BlackholeDuration.FloatValue, 10.0, 10.0, color, 1, 0);
 			TE_SendToAll();
 		}
 	}
@@ -1057,6 +1108,11 @@ void SpawnEffect(int entity)
 void SpawnExplosion(int entity)
 {
 	int owner = GetEntPropEnt(entity, Prop_Data, "m_hOwnerEntity");
+	if(owner < 1 || owner > MaxClients)
+		return;
+	if(!IsClientInGame(owner))
+		return;
+	
 	char particleEffect[PLATFORM_MAX_PATH];
 	float nadeOrigin[3];
 	GetEntPropVector(entity, Prop_Send, "m_vecOrigin", nadeOrigin);
@@ -1154,13 +1210,16 @@ void SpawnExplosion(int entity)
 void SpawnImplosion(int entity)
 {
 	int owner = GetEntPropEnt(entity, Prop_Data, "m_hOwnerEntity");
+	if(owner < 1 || owner > MaxClients)
+		return;
+	if(!IsClientInGame(owner))
+		return;
 	char particleEffect[PLATFORM_MAX_PATH];
 	float nadeOrigin[3];
 	GetEntPropVector(entity, Prop_Send, "m_vecOrigin", nadeOrigin);
 	AcceptEntityInput(entity, "Kill");
 	
 	int particle = CreateEntityByName("info_particle_system");
-	SetEntPropEnt(particle, Prop_Data, "m_hOwnerEntity", GetEntPropEnt(entity, Prop_Data, "m_hOwnerEntity"));
 	g_ImplosionParticleEffect.GetString(particleEffect, sizeof(particleEffect));
 	
 	DispatchKeyValue(particle , "start_active", "0");
@@ -1243,19 +1302,33 @@ public Action Timer_Duration(Handle timer, DataPack pack)
 	nadeOrigin[2] = pack.ReadCell();
 	int volumeIndex = pack.ReadCell();
 	
+	if(!IsValidEntity(particle))
+	{
+		int blackholeIndex = g_Blackholes.FindValue(particle);
+		if(blackholeIndex != -1)
+			g_Blackholes.Erase(blackholeIndex);
+		
+		
+		int forcefieldIndex = g_Forcefields.FindValue(particle);
+		if(forcefieldIndex != -1)
+			g_Forcefields.Erase(forcefieldIndex);
+			
+		return Plugin_Handled;
+	}
+	
 	char particleName[16];
 	GetEntPropString(particle, Prop_Data, "m_iName", particleName, sizeof(particleName));
 	
 	if(StrEqual(particleName, "blackhole", false))
 	{
 		int index = g_Blackholes.FindValue(particle);
-		if(index >= 0)
+		if(index != -1)
 			g_Blackholes.Erase(index);
 	}
 	else if(StrEqual(particleName, "forcefield", false))
 	{
 		int index = g_Forcefields.FindValue(particle);
-		if(index >= 0)
+		if(index != -1)
 			g_Forcefields.Erase(index);
 	}
 	
@@ -1269,6 +1342,7 @@ public Action Timer_Duration(Handle timer, DataPack pack)
 	packFade.WriteCell(nadeOrigin[2]);
 	packFade.WriteCell(volumeIndex);
 	
+	return Plugin_Handled;
 }
 
 public Action Timer_Fade(Handle timer, DataPack pack)
@@ -1280,6 +1354,9 @@ public Action Timer_Fade(Handle timer, DataPack pack)
 	nadeOrigin[1] = pack.ReadCell();
 	nadeOrigin[2] = pack.ReadCell();
 	int volumeIndex = pack.ReadCell();
+	
+	if(!IsValidEntity(particle))
+		KillTimer(timer);
 	
 	char particleName[16];
 	GetEntPropString(particle, Prop_Data, "m_iName", particleName, sizeof(particleName));
@@ -1310,7 +1387,10 @@ public Action Timer_Fade(Handle timer, DataPack pack)
 			KillTimer(timer);
 		}	
 	}
-	
+	else
+	{
+		KillTimer(timer);
+	}
 }
 	
 public bool TraceFilterNotSelf(int entityhit, int mask, any entity)
@@ -1476,6 +1556,8 @@ public void OnClientDisconnect(int client)
 
 public void OnMapStart()
 {
+	g_Blackholes.Clear();
+	g_Forcefields.Clear();
 	if(g_UseDecoyModel.BoolValue)
 	{	
 		//VIEWMODEL
