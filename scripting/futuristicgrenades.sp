@@ -284,9 +284,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			if(g_eMode[client] == DecoyMode_Forcefield)
 			{
 				if(g_eForcefieldMode[client] < ForcefieldMode_Max - view_as<ForceFieldMode>(1))
-				{
 					g_eForcefieldMode[client]++;
-				}
 				else
 					g_eForcefieldMode[client] = ForcefieldMode_Normal;
 					
@@ -297,9 +295,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			else if(g_eMode[client] == DecoyMode_ForceExplosion)
 			{
 				if(g_eForceExplosionMode[client] < ForceExplosionMode_Max - view_as<ForceExplosionMode>(1))
-				{
 					g_eForceExplosionMode[client]++;
-				}
 				else
 					g_eForceExplosionMode[client] = ForceExplosionMode_Ground;
 					
@@ -310,9 +306,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			else if(g_eMode[client] == DecoyMode_ForceImplosion)
 			{
 				if(g_eForceImplosionMode[client] < ForceImplosionMode_Max - view_as<ForceImplosionMode>(1))
-				{
 					g_eForceImplosionMode[client]++;
-				}
 				else
 					g_eForceImplosionMode[client] = ForceImplosionMode_Ground;
 					
