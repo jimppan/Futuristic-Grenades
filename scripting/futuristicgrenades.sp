@@ -3,7 +3,7 @@
 #define DEBUG
 
 #define PLUGIN_AUTHOR "Rachnus"
-#define PLUGIN_VERSION "1.3"
+#define PLUGIN_VERSION "1.3.1"
 
 #include <sourcemod>
 #include <sdktools>
@@ -130,7 +130,7 @@ ConVar g_ImplosionBounceVelocity;
 
 public Plugin myinfo = 
 {
-	name = "Futuristic Grenades",
+	name = "Futuristic Grenades v1.3.1",
 	author = PLUGIN_AUTHOR,
 	description = "Adds more modes for decoys grenades",
 	version = PLUGIN_VERSION,
