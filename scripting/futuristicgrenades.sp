@@ -10,6 +10,7 @@
 #include <cstrike>
 #include <sdkhooks>
 #include <emitsoundany>
+#include <clientprefs>
 
 #pragma newdecls required
 #define BLACKHOLE_VOLUME 5.0
@@ -48,23 +49,28 @@ enum ForceImplosionMode
 	ForceImplosionMode_Max
 }
 
+
 EngineVersion g_Game;
-int g_PVMid[MAXPLAYERS + 1]; // Predicted ViewModel ID's
+
 DecoyMode g_eMode[MAXPLAYERS + 1] =  { DecoyMode_Normal, ... };
 ForceFieldMode g_eForcefieldMode[MAXPLAYERS + 1] =  { ForcefieldMode_Normal, ... };
 ForceExplosionMode g_eForceExplosionMode[MAXPLAYERS + 1] =  { ForceExplosionMode_Ground, ... };
 ForceImplosionMode g_eForceImplosionMode[MAXPLAYERS + 1] =  { ForceImplosionMode_Ground, ... };
 bool g_bSwitchGrenade[MAXPLAYERS + 1] =  { false, ... };
 bool g_bSwitchMode[MAXPLAYERS + 1] =  { false, ... };
+int g_PVMid[MAXPLAYERS + 1]; // Predicted ViewModel ID's
 int g_iViewModelIndex;
-int g_iDefautlViewModelIndex;
+int g_iDefaultViewModelIndex;
 int g_iPathLaserModelIndex;
-ArrayList g_Blackholes;
-ArrayList g_Forcefields;
+ArrayList g_hBlackholes;
+ArrayList g_hForcefields;
 float g_BlackholeVolume[MAXPLAYERS * 2] =  { BLACKHOLE_VOLUME, ... };
 float g_ForcefieldVolume[MAXPLAYERS * 2] =  { FORCEFIELD_VOLUME, ... };
+
+//UserMsg g_SayText2;
+
 //GLOBAL
-ConVar g_UseDecoyModel;
+ConVar g_UseGrenadeModel;
 ConVar g_Enable;
 ConVar g_FriendlyFire;
 //BLACKHOLE
@@ -72,18 +78,18 @@ ConVar g_BlackholeFlags;
 ConVar g_BlackholeParticleEffect;
 ConVar g_BlackholeMinimumDistance;
 ConVar g_BlackholeBounceVelocity;
-ConVar g_BlackholeShakePlayer;
-ConVar g_BlackholeShakeIntensity;
+ConVar g_hBlackholeshakePlayer;
+ConVar g_hBlackholeshakeIntensity;
 ConVar g_BlackholeFrequency;
 ConVar g_BlackholeForce;
 ConVar g_BlackholeDuration;
-ConVar g_BlackholeSetting;
+ConVar g_hBlackholesetting;
 ConVar g_BlackholeDamage;
 ConVar g_BlackholeProps;
 ConVar g_BlackholeWeapons;
 ConVar g_BlackholeGrenades;
 ConVar g_BlackholeFlashbangs;
-ConVar g_BlackholeSmokes;
+ConVar g_hBlackholesmokes;
 ConVar g_BlackholeIndicator;
 //FORCEFIELD
 ConVar g_ForcefieldFlags;
@@ -95,7 +101,7 @@ ConVar g_ForcefieldDuration;
 ConVar g_ForcefieldProps;
 ConVar g_ForcefieldGrenades;
 ConVar g_ForcefieldFlashbangs;
-ConVar g_ForcefieldSmokes;
+ConVar g_hForcefieldsmokes;
 ConVar g_ForcefieldIndicator;
 //FORCE EXPLOSION
 ConVar g_ExplosionFlags;
@@ -142,10 +148,11 @@ public void OnPluginStart()
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("decoy_started", Event_DecoyStarted, EventHookMode_Pre);
+
 	//RegConsoleCmd("sm_test", Command_Test);
 	RegConsoleCmd("fg_ff", Command_FriendlyFire);
 	//GENERAL CONVARS
-	g_UseDecoyModel = 				CreateConVar("fg_decoy_model", "1", "Whether or not to use custom model for decoy", FCVAR_NOTIFY);
+	g_UseGrenadeModel = 			CreateConVar("fg_decoy_model", "1", "Whether or not to use custom model for decoy", FCVAR_NOTIFY);
 	g_Enable = 						CreateConVar("fg_enabled", "1", "Enable/Disable plugin", FCVAR_NOTIFY);
 	g_FriendlyFire =				CreateConVar("fg_friendlyfire", "1", "Enable/Disable friendly fire", FCVAR_NOTIFY);
 
@@ -154,18 +161,18 @@ public void OnPluginStart()
 	g_BlackholeParticleEffect =		CreateConVar("fg_blackhole_particle_effect", "blackhole", "Name of the particle effect you want to use for blackholes", FCVAR_NOTIFY);
 	g_BlackholeMinimumDistance = 	CreateConVar("fg_blackhole_minimum_distance", "250", "Minimum distance to push player towards black hole", FCVAR_NOTIFY);
 	g_BlackholeBounceVelocity = 	CreateConVar("fg_blackhole_bounce_velocity", "300", "Up/Down velocity to push the grenade on bounce", FCVAR_NOTIFY);
-	g_BlackholeShakePlayer = 		CreateConVar("fg_blackhole_shake_player", "1", "Shake the player once entering minimum distance", FCVAR_NOTIFY);
-	g_BlackholeShakeIntensity =		CreateConVar("fg_blackhole_shake_intensity", "5.0", "Intensity of the shake", FCVAR_NOTIFY);
+	g_hBlackholeshakePlayer = 		CreateConVar("fg_blackhole_shake_player", "1", "Shake the player once entering minimum distance", FCVAR_NOTIFY);
+	g_hBlackholeshakeIntensity =	CreateConVar("fg_blackhole_shake_intensity", "5.0", "Intensity of the shake", FCVAR_NOTIFY);
 	g_BlackholeFrequency =			CreateConVar("fg_blackhole_shake_frequency", "0.7", "Frequency of the shake", FCVAR_NOTIFY);
 	g_BlackholeForce = 				CreateConVar("fg_blackhole_force", "350", "Force to fly at the black hole", FCVAR_NOTIFY); 
 	g_BlackholeDuration = 			CreateConVar("fg_blackhole_duration", "10", "Duration in seconds the blackhole lasts", FCVAR_NOTIFY);
-	g_BlackholeSetting = 			CreateConVar("fg_blackhole_setting", "1", "0 = Do nothing on entering blackhole origin, 1 = Do damage on entering the blackhole origin", FCVAR_NOTIFY);
+	g_hBlackholesetting = 			CreateConVar("fg_blackhole_setting", "1", "0 = Do nothing on entering blackhole origin, 1 = Do damage on entering the blackhole origin", FCVAR_NOTIFY);
 	g_BlackholeDamage = 			CreateConVar("fg_blackhole_damage", "5", "Damage to do once entering blackhole origin", FCVAR_NOTIFY);
 	g_BlackholeProps = 				CreateConVar("fg_blackhole_props", "1", "Push props towards black hole (Client side props will not work)", FCVAR_NOTIFY);
 	g_BlackholeWeapons = 			CreateConVar("fg_blackhole_weapons", "1", "Push dropped weapons towards black hole", FCVAR_NOTIFY);
 	g_BlackholeGrenades = 			CreateConVar("fg_blackhole_hegrenades", "1", "Push active hand grenades towards black hole", FCVAR_NOTIFY);
 	g_BlackholeFlashbangs =			CreateConVar("fg_blackhole_flashbangs", "1", "Push active flashbangs towards black hole", FCVAR_NOTIFY);
-	g_BlackholeSmokes = 			CreateConVar("fg_blackhole_smokes", "1", "Push active smoke grenades towards black hole", FCVAR_NOTIFY);
+	g_hBlackholesmokes = 			CreateConVar("fg_blackhole_smokes", "1", "Push active smoke grenades towards black hole", FCVAR_NOTIFY);
 	g_BlackholeIndicator = 			CreateConVar("fg_blackhole_indicator", "0", "Indicate minimum distance to push player towards black hole", FCVAR_NOTIFY);
 	
 	//FORCEFIELD CONVARS
@@ -178,7 +185,7 @@ public void OnPluginStart()
 	g_ForcefieldProps = 			CreateConVar("fg_forcefield_props", "1", "Push props away from forcefield", FCVAR_NOTIFY);
 	g_ForcefieldGrenades = 			CreateConVar("fg_forcefield_hegrenades", "1", "Push active hand grenades away from forcefield", FCVAR_NOTIFY);
 	g_ForcefieldFlashbangs =		CreateConVar("fg_forcefield_flashbangs", "1", "Push active flashbangs away from forcefield", FCVAR_NOTIFY);
-	g_ForcefieldSmokes = 			CreateConVar("fg_forcefield_smokes", "1", "Push active smoke grenades away from forcefield", FCVAR_NOTIFY);
+	g_hForcefieldsmokes = 			CreateConVar("fg_forcefield_smokes", "1", "Push active smoke grenades away from forcefield", FCVAR_NOTIFY);
 	g_ForcefieldIndicator = 		CreateConVar("fg_forcefield_indicator", "1", "Indicate minimum distance to push player away from force field", FCVAR_NOTIFY);
 	
 	//FORCE EXPLOSION CONVARS
@@ -206,22 +213,26 @@ public void OnPluginStart()
 	g_ImplosionBounce =				CreateConVar("fg_implosion_bounce", "0", "Bounce the grenade before activating", FCVAR_NOTIFY);
 	g_ImplosionBounceVelocity =		CreateConVar("fg_implosion_bounce_velocity", "300", "Up/Down velocity to push the grenade on bounce (If fg_implosion_bounce enabled)", FCVAR_NOTIFY);
 	
-	HookConVarChange(g_UseDecoyModel, ConVar_DecoyModel);
+	HookConVarChange(g_UseGrenadeModel, ConVar_DecoyModel);
 	HookConVarChange(g_FriendlyFire, ConVar_FriendlyFire);
 	
 	for (int i = 1; i <= MaxClients;i++)
 	{
-		if(IsClientInGame(i) && !IsFakeClient(i))
+		if(IsClientInGame(i))
 		{
-			SDKHook(i, SDKHook_WeaponSwitchPost, OnClientWeaponSwitchPost);
-			g_PVMid[i] = Weapon_GetViewModelIndex(i, -1);
+			if(!IsFakeClient(i))
+			{
+				SDKHook(i, SDKHook_WeaponSwitchPost, OnClientWeaponSwitchPost);
+				g_PVMid[i] = Weapon_GetViewModelIndex(i, -1);
+			}
 		}
 	}
 
-	g_Blackholes = new ArrayList();
-	g_Forcefields = new ArrayList();
+	g_hBlackholes = new ArrayList();
+	g_hForcefields = new ArrayList();
 	AutoExecConfig(true, "futuristicgrenades");
 }
+
 
 public Action Command_FriendlyFire(int client, int args)
 {
@@ -230,10 +241,14 @@ public Action Command_FriendlyFire(int client, int args)
 
 void PrintActiveSettings(int client)
 {
+	
+	char weaponname[32];
 	char mode[32];
 	char forcefieldmode[32];
 	char forceexplosionmode[32];
 	char forceimplosionmode[32];
+	GetClientWeapon(client, weaponname, sizeof(weaponname));
+	
 	if(g_eMode[client] == DecoyMode_Normal)
 		Format(mode, sizeof(mode), "Normal");
 	else if(g_eMode[client] == DecoyMode_Blackhole)
@@ -258,23 +273,28 @@ void PrintActiveSettings(int client)
 	if(g_eForceImplosionMode[client] == ForceImplosionMode_Ground)
 		Format(forceimplosionmode, sizeof(forceimplosionmode), "Ground");
 	else if(g_eForceImplosionMode[client] == ForceImplosionMode_World)
-		Format(forceimplosionmode, sizeof(forceimplosionmode), "World");	
+		Format(forceimplosionmode, sizeof(forceimplosionmode), "World");
 	
-	if(g_eMode[client] == DecoyMode_Forcefield)
-		PrintHintText(client, "<font size='20' face=''>Mode: <font color='#00ff00'>%s</font>\n<font size='20' face=''>ForceField Mode: <font color='#00ff00'>%s</font>\n<font size='20' face=''>Buttons: <font color='#cc3300'>Reload & Use (R & E)</font>", mode, forcefieldmode);
-	else if(g_eMode[client] == DecoyMode_ForceExplosion)
-		PrintHintText(client, "<font size='20' face=''>Mode: <font color='#00ff00'>%s</font>\n<font size='20' face=''>ForceExplosion Mode: <font color='#00ff00'>%s</font>\n<font size='20' face=''>Buttons: <font color='#cc3300'>Reload & Use (R & E)</font>", mode, forceexplosionmode);
-	else if(g_eMode[client] == DecoyMode_ForceImplosion)
-		PrintHintText(client, "<font size='20' face=''>Mode: <font color='#00ff00'>%s</font>\n<font size='20' face=''>ForceImplosion Mode: <font color='#00ff00'>%s</font>\n<font size='20' face=''>Buttons: <font color='#cc3300'>Reload & Use (R & E)</font>", mode, forceimplosionmode);
-	else
-		PrintHintText(client, "<font size='20' face=''>Mode: <font color='#00ff00'>%s</font>\n\n<font size='20' face=''>Buttons: <font color='#cc3300'>Reload & Use (R & E)</font>", mode);
+	if(StrEqual(weaponname, "weapon_decoy", false))
+	{
+		if(g_eMode[client] == DecoyMode_Blackhole || g_eMode[client] == DecoyMode_Normal)
+			PrintHintText(client, "<font size='20' face=''>Mode: <font color='#00ff00'>%s</font>", mode);
+		else if(g_eMode[client] == DecoyMode_Forcefield)
+			PrintHintText(client, "<font size='20' face=''>Mode: <font color='#00ff00'>%s</font>\n<font size='20' face=''>ForceField Mode: <font color='#00ff00'>%s</font>\n<font size='20' face=''>Buttons: <font color='#cc3300'>Reload & Use (R & E)</font>", mode, forcefieldmode);
+		else if(g_eMode[client] == DecoyMode_ForceExplosion)
+			PrintHintText(client, "<font size='20' face=''>Mode: <font color='#00ff00'>%s</font>\n<font size='20' face=''>ForceExplosion Mode: <font color='#00ff00'>%s</font>\n<font size='20' face=''>Buttons: <font color='#cc3300'>Reload & Use (R & E)</font>", mode, forceexplosionmode);
+		else if(g_eMode[client] == DecoyMode_ForceImplosion)
+			PrintHintText(client, "<font size='20' face=''>Mode: <font color='#00ff00'>%s</font>\n<font size='20' face=''>ForceImplosion Mode: <font color='#00ff00'>%s</font>\n<font size='20' face=''>Buttons: <font color='#cc3300'>Reload & Use (R & E)</font>", mode, forceimplosionmode);
+		else
+			PrintHintText(client, "<font size='20' face=''>Mode: <font color='#00ff00'>%s</font>\n\n<font size='20' face=''>Buttons: <font color='#cc3300'>Reload & Use (R & E)</font>", mode);
+	}
 }
 
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon, int &subtype, int &cmdnum, int &tickcount, int &seed, int mouse[2])
 { 
 	if(!g_Enable.BoolValue)
 		return Plugin_Continue;
-		
+	
 	if(buttons & IN_USE && !g_bSwitchMode[client])
 	{
 		char weaponName[32];
@@ -364,7 +384,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			PrintActiveSettings(client);
 			EmitSoundToClientAny(client, "buttons/button15.wav");
 
-			if(g_UseDecoyModel.BoolValue)
+			if(g_UseGrenadeModel.BoolValue)
 			{
 				if(g_eMode[client] != DecoyMode_Normal)
 				{
@@ -376,7 +396,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				{
 					int weaponEnt = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon"); 
 					SetEntProp(weaponEnt, Prop_Send, "m_nModelIndex", 0); 
-					SetEntProp(g_PVMid[client], Prop_Send, "m_nModelIndex", g_iDefautlViewModelIndex);
+					SetEntProp(g_PVMid[client], Prop_Send, "m_nModelIndex", g_iDefaultViewModelIndex);
 				}
 			}
 		}
@@ -387,8 +407,6 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		
 	return Plugin_Continue;
 }
-
-
 
 public void ConVar_FriendlyFire(ConVar convar, const char[] oldValue, const char[] newValue)
 {
@@ -450,9 +468,10 @@ public void OnGameFrame()
 
 void UpdateBlackHoles()
 {
-	for (int index = 0; index < g_Blackholes.Length; index++)
+	for (int index = 0; index < g_hBlackholes.Length; index++)
 	{
-		if(IsValidEntity(g_Blackholes.Get(index)))
+		int iBlackhole = EntRefToEntIndex(g_hBlackholes.Get(index));
+		if(IsValidEntity(iBlackhole))
 		{
 			for (int client = 1; client <= MaxClients; client++)
 			{
@@ -460,55 +479,56 @@ void UpdateBlackHoles()
 				{
 					if(!g_FriendlyFire.BoolValue)
 					{
-						int owner = GetEntPropEnt(g_Blackholes.Get(index), Prop_Data, "m_hOwnerEntity");
+						int owner = GetEntPropEnt(iBlackhole, Prop_Data, "m_hOwnerEntity");
 						if(owner < 1 || owner > MaxClients)
 						{
-							g_Blackholes.Erase(index);
-							AcceptEntityInput(g_Blackholes.Get(index), "Kill");
+							g_hBlackholes.Erase(index);
+							AcceptEntityInput(iBlackhole, "Kill");
 							break;
 						}
 						
 						if(!IsClientInGame(owner))
 						{
-							g_Blackholes.Erase(index);
-							AcceptEntityInput(g_Blackholes.Get(index), "Kill");
+							g_hBlackholes.Erase(index);
+							AcceptEntityInput(iBlackhole, "Kill");
 							break;
 						}
 							
 						int ownerteam = GetClientTeam(owner);
 						if((ownerteam != GetClientTeam(client)) || client == owner)
-							PushPlayersToBlackHole(client, index);
+							PushPlayersToBlackHole(client, iBlackhole);
 					}
 					else
-						PushPlayersToBlackHole(client, index);
+						PushPlayersToBlackHole(client, iBlackhole);
 				}
 			}
 		
 			if(g_BlackholeProps.BoolValue)
-				PushToBlackHole(index, "prop_physics*");
+				PushToBlackHole(iBlackhole, "prop_physics*");
 				
 			if(g_BlackholeWeapons.BoolValue)
-				PushToBlackHole(index, "weapon_*");
+				PushToBlackHole(iBlackhole, "weapon_*");
 			
 			if(g_BlackholeGrenades.BoolValue)
-				PushToBlackHole(index, "hegrenade_projectile");
+				PushToBlackHole(iBlackhole, "hegrenade_projectile");
 	
 			if(g_BlackholeFlashbangs.BoolValue)
-				PushToBlackHole(index, "flashbang_projectile");
+				PushToBlackHole(iBlackhole, "flashbang_projectile");
 		
-			if(g_BlackholeSmokes.BoolValue)
-				PushToBlackHole(index, "smokegrenade_projectile");	
+			if(g_hBlackholesmokes.BoolValue)
+				PushToBlackHole(iBlackhole, "smokegrenade_projectile");	
 		}
 		else
-			g_Blackholes.Erase(index);		
+			g_hBlackholes.Erase(index);		
 	}
 }
 
 void UpdateForceFields()
 {
-	for (int index = 0; index < g_Forcefields.Length; index++)
+	for (int index = 0; index < g_hForcefields.Length; index++)
 	{
-		if(IsValidEntity(g_Forcefields.Get(index)))
+		int iForcefield = EntRefToEntIndex(g_hForcefields.Get(index));
+		if(IsValidEntity(iForcefield))
 		{
 			for (int client = 1; client <= MaxClients; client++)
 			{
@@ -516,66 +536,65 @@ void UpdateForceFields()
 				{
 					if(!g_FriendlyFire.BoolValue)
 					{
-						int owner = GetEntPropEnt(g_Forcefields.Get(index), Prop_Data, "m_hOwnerEntity");
+						int owner = GetEntPropEnt(iForcefield, Prop_Data, "m_hOwnerEntity");
 						
 						if(owner < 1 || owner > MaxClients)
 						{
-							g_Forcefields.Erase(index);
-							AcceptEntityInput(g_Forcefields.Get(index), "Kill");
+							g_hForcefields.Erase(index);
+							AcceptEntityInput(iForcefield, "Kill");
 							break;
 						}
 						
 						if(!IsClientInGame(owner))
 						{
-							g_Forcefields.Erase(index);
-							AcceptEntityInput(g_Forcefields.Get(index), "Kill");
+							g_hForcefields.Erase(index);
+							AcceptEntityInput(iForcefield, "Kill");
 							break;
 						}
 						
 						int ownerteam = GetClientTeam(owner);
 						
 						if(ownerteam != GetClientTeam(client) || (client == owner && g_eForcefieldMode[owner] == ForcefieldMode_Self))
-							PushPlayersAwayFromForceField(client, index);
+							PushPlayersAwayFromForceField(client, iForcefield);
 					}
 					else
 					{
-						int owner = GetEntPropEnt(g_Forcefields.Get(index), Prop_Data, "m_hOwnerEntity");
+						int owner = GetEntPropEnt(iForcefield, Prop_Data, "m_hOwnerEntity");
 						if(client == owner)
 						{
 							if(g_eForcefieldMode[owner] == ForcefieldMode_Self)
-								PushPlayersAwayFromForceField(client, index);
+								PushPlayersAwayFromForceField(client, iForcefield);
 						}
 						else
-							PushPlayersAwayFromForceField(client, index);
+							PushPlayersAwayFromForceField(client, iForcefield);
 					}
 				}
 			}				
-				
 		
 			if(g_ForcefieldProps.BoolValue)
-				PushAwayFromForceField(index, "prop_physics*");
+				PushAwayFromForceField(iForcefield, "prop_physics*");
 			
 			if(g_ForcefieldGrenades.BoolValue)
-				PushAwayFromForceField(index, "hegrenade_projectile");
+				PushAwayFromForceField(iForcefield, "hegrenade_projectile");
 	
 			if(g_ForcefieldFlashbangs.BoolValue)
-				PushAwayFromForceField(index, "flashbang_projectile");
+				PushAwayFromForceField(iForcefield, "flashbang_projectile");
 		
-			if(g_ForcefieldSmokes.BoolValue)
-				PushAwayFromForceField(index, "smokegrenade_projectile");	
+			if(g_hForcefieldsmokes.BoolValue)
+				PushAwayFromForceField(iForcefield, "smokegrenade_projectile");	
 		}
 		else
-			g_Forcefields.Erase(index);
+			g_hForcefields.Erase(index);
 	}
 }
 
-void PushPlayersAwayFromForceField(int client, int index)
+void PushPlayersAwayFromForceField(int client, int iForcefield)
 {
-	if(IsValidEntity(g_Forcefields.Get(index)))
+	if(IsValidEntity(iForcefield))
 	{
 		float clientPos[3], forcefieldPos[3];
 		GetClientAbsOrigin(client, clientPos);
-		GetEntPropVector(g_Forcefields.Get(index), Prop_Send, "m_vecOrigin", forcefieldPos);
+		GetEntPropVector(iForcefield, Prop_Send, "m_vecOrigin", forcefieldPos);
 		
 		float distance = GetVectorDistance(clientPos, forcefieldPos);
 
@@ -602,28 +621,28 @@ void PushPlayersAwayFromForceField(int client, int index)
 	}
 }
 
-void PushPlayersToBlackHole(int client, int index)
+void PushPlayersToBlackHole(int client, int iBlackhole)
 {
-	if(IsValidEntity(g_Blackholes.Get(index)))
+	if(IsValidEntity(iBlackhole))
 	{
 		float clientPos[3], blackholePos[3];
 		GetClientAbsOrigin(client, clientPos);
-		GetEntPropVector(g_Blackholes.Get(index), Prop_Send, "m_vecOrigin", blackholePos);
+		GetEntPropVector(iBlackhole, Prop_Send, "m_vecOrigin", blackholePos);
 		
 		float distance = GetVectorDistance(clientPos, blackholePos);
 
 		if(distance < 20.0)
 		{
-			if(g_BlackholeShakePlayer.BoolValue)
-				ShakeScreen(client, g_BlackholeShakeIntensity.FloatValue, 0.1, g_BlackholeFrequency.FloatValue);
+			if(g_hBlackholeshakePlayer.BoolValue)
+				ShakeScreen(client, g_hBlackholeshakeIntensity.FloatValue, 0.1, g_BlackholeFrequency.FloatValue);
 						
-			if(g_BlackholeSetting.IntValue == 1)
-				SDKHooks_TakeDamage(client, g_Blackholes.Get(index), g_Blackholes.Get(index), g_BlackholeDamage.FloatValue, DMG_DROWN, -1);
+			if(g_hBlackholesetting.IntValue == 1)
+				SDKHooks_TakeDamage(client, iBlackhole, iBlackhole, g_BlackholeDamage.FloatValue, DMG_DROWN, -1);
 		}
 		if(distance < g_BlackholeMinimumDistance.FloatValue)
 		{
-			if(g_BlackholeShakePlayer.BoolValue)
-				ShakeScreen(client, g_BlackholeShakeIntensity.FloatValue, 0.1, g_BlackholeFrequency.FloatValue);
+			if(g_hBlackholeshakePlayer.BoolValue)
+				ShakeScreen(client, g_hBlackholeshakeIntensity.FloatValue, 0.1, g_BlackholeFrequency.FloatValue);
 				
 			SetEntPropEnt(client, Prop_Data, "m_hGroundEntity", -1);
 
@@ -646,14 +665,14 @@ void PushPlayersToBlackHole(int client, int index)
 	}
 }
 
-void PushToBlackHole(int index, const char[] classname)
+void PushToBlackHole(int iBlackhole, const char[] classname)
 {
 	int iEnt = MaxClients + 1;
 	while((iEnt = FindEntityByClassname(iEnt, classname)) != -1)
 	{
 		float propPos[3], blackholePos[3];
 		GetEntPropVector(iEnt, Prop_Send, "m_vecOrigin", propPos);
-		GetEntPropVector(g_Blackholes.Get(index), Prop_Send, "m_vecOrigin", blackholePos);
+		GetEntPropVector(iBlackhole, Prop_Send, "m_vecOrigin", blackholePos);
 		
 		float distance = GetVectorDistance(propPos, blackholePos);
 		if(distance > 20.0 && distance < g_BlackholeMinimumDistance.FloatValue)
@@ -677,13 +696,13 @@ void PushToBlackHole(int index, const char[] classname)
 	}
 }
 
-void PushAwayFromForceField(int index, const char[] classname)
+void PushAwayFromForceField(int iForcefield, const char[] classname)
 {
 	int iEnt = MaxClients + 1;
 	while((iEnt = FindEntityByClassname(iEnt, classname)) != -1)
 	{
 		int entityowner = GetEntPropEnt(iEnt, Prop_Data, "m_hOwnerEntity");
-		int forcefieldowner = GetEntPropEnt(g_Forcefields.Get(index), Prop_Data, "m_hOwnerEntity");
+		int forcefieldowner = GetEntPropEnt(iForcefield, Prop_Data, "m_hOwnerEntity");
 		
 		if(entityowner > 0 && entityowner <= MaxClients)
 		{
@@ -693,7 +712,7 @@ void PushAwayFromForceField(int index, const char[] classname)
 				{
 					float propPos[3], forcefieldPos[3];
 					GetEntPropVector(iEnt, Prop_Send, "m_vecOrigin", propPos);
-					GetEntPropVector(g_Forcefields.Get(index), Prop_Send, "m_vecOrigin", forcefieldPos);
+					GetEntPropVector(iForcefield, Prop_Send, "m_vecOrigin", forcefieldPos);
 					
 					float distance = GetVectorDistance(propPos, forcefieldPos);
 					if(distance < g_ForcefieldMinimumDistance.FloatValue)
@@ -720,7 +739,7 @@ void PushAwayFromForceField(int index, const char[] classname)
 			{
 				float propPos[3], forcefieldPos[3];
 				GetEntPropVector(iEnt, Prop_Send, "m_vecOrigin", propPos);
-				GetEntPropVector(g_Forcefields.Get(index), Prop_Send, "m_vecOrigin", forcefieldPos);
+				GetEntPropVector(iForcefield, Prop_Send, "m_vecOrigin", forcefieldPos);
 				
 				float distance = GetVectorDistance(propPos, forcefieldPos);
 				if(distance < g_ForcefieldMinimumDistance.FloatValue)
@@ -747,7 +766,7 @@ void PushAwayFromForceField(int index, const char[] classname)
 		{
 			float propPos[3], forcefieldPos[3];
 			GetEntPropVector(iEnt, Prop_Send, "m_vecOrigin", propPos);
-			GetEntPropVector(g_Forcefields.Get(index), Prop_Send, "m_vecOrigin", forcefieldPos);
+			GetEntPropVector(iForcefield, Prop_Send, "m_vecOrigin", forcefieldPos);
 			
 			float distance = GetVectorDistance(propPos, forcefieldPos);
 			if(distance < g_ForcefieldMinimumDistance.FloatValue)
@@ -821,10 +840,12 @@ void PushToImplosion(int entity, const char[] classname)
 		}
 	}
 }
+
 /*
 public Action Command_Test(int client, int args)
 {
-	PrintToChatAll("LENGTH: %d", g_Blackholes.Length);
+	int x = GetPlayerWeaponSlot(client, CS_SLOT_GRENADE);
+	PrintToChat(client, "WEAPONSSLOT: %d", x);
 }
 */
 
@@ -836,12 +857,12 @@ public void OnEntityCreated(int entity, const char[] classname)
 	if(StrEqual(classname, "decoy_projectile", false))
 	{
 		SDKHook(entity, SDKHook_SpawnPost, DecoySpawned);
-	}
+	}	
 }
 
 public Action DecoySpawned(int entity)
 {
-	int owner = GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
+	int owner = GetEntPropEnt(entity, Prop_Data, "m_hOwnerEntity");
 	
 	if(owner > 0 && owner <= MaxClients)
 	{
@@ -860,7 +881,7 @@ public Action DecoySpawned(int entity)
 		else if(g_eMode[owner] == DecoyMode_ForceImplosion)
 			SetEntPropString(entity, Prop_Data, "m_iName", "implosion");
 				
-		if(g_UseDecoyModel.BoolValue)
+		if(g_UseGrenadeModel.BoolValue)
 			SetEntityModel(entity, "models/weapons/futuristicgrenades/w_eq_decoy.mdl");
 	
 		SDKHook(entity, SDKHook_TouchPost, DecoyTouchPost);
@@ -909,9 +930,14 @@ public Action DecoyTouchPost(int entity, int other)
 				endPoint[0] = vecPos[0] - 1.0;
 				
 				Handle traceY = TR_TraceRayFilterEx(startPoint, endPoint, MASK_PLAYERSOLID, RayType_EndPoint, TraceFilterNotSelf, entity);
-
+				
 				if((TR_DidHit(traceZ) && !TR_DidHit(traceX) && !TR_DidHit(traceY)) || slopeAngle[2] > 0.5)
 					RequestFrame(FrameCallback, entity);
+					
+				CloseHandle(traceZ);
+				CloseHandle(traceX);
+				CloseHandle(traceY);
+				
 			}
 			else
 				RequestFrame(FrameCallback, entity);
@@ -945,6 +971,10 @@ public Action DecoyTouchPost(int entity, int other)
 
 				if((TR_DidHit(traceZ) && !TR_DidHit(traceX) && !TR_DidHit(traceY)) || slopeAngle[2] > 0.5)
 					RequestFrame(FrameCallback, entity);
+				
+				CloseHandle(traceZ);
+				CloseHandle(traceX);
+				CloseHandle(traceY);
 			}
 			else
 				RequestFrame(FrameCallback, entity);
@@ -976,28 +1006,34 @@ public Action DecoyTouchPost(int entity, int other)
 
 			if((TR_DidHit(traceZ) && !TR_DidHit(traceX) && !TR_DidHit(traceY)) || slopeAngle[2] > 0.5)
 				RequestFrame(FrameCallback, entity);
+				
+			CloseHandle(traceZ);
+			CloseHandle(traceX);
+			CloseHandle(traceY);
 		}	
 	}
 }
 
 public void FrameCallback(any entity)
 {
+	SDKUnhook(entity, SDKHook_TouchPost, DecoyTouchPost);
+	
 	char entityName[16];
 	GetEntPropString(entity, Prop_Data, "m_iName", entityName, sizeof(entityName));
-	
+	int ref = EntIndexToEntRef(entity);
 	float vel[3] =  { 0.0, 0.0, 300.0 };
 	
 	if(StrEqual(entityName, "blackhole", false))
 	{
 		vel[2] = g_BlackholeBounceVelocity.FloatValue;
 		TeleportEntity(entity, NULL_VECTOR, NULL_VECTOR, vel);
-		CreateTimer(0.5, Timer_Decoy, entity);
+		CreateTimer(0.5, Timer_Decoy, ref);
 	}
 	else if(StrEqual(entityName, "forcefield", false))
 	{
 		vel[2] = g_ForcefieldBounceVelocity.FloatValue;
 		TeleportEntity(entity, NULL_VECTOR, NULL_VECTOR, vel);
-		CreateTimer(0.5, Timer_Decoy, entity);
+		CreateTimer(0.5, Timer_Decoy, ref);
 	}
 	else if(StrEqual(entityName, "explosion", false))
 	{
@@ -1006,7 +1042,7 @@ public void FrameCallback(any entity)
 		if(g_ExplosionBounce.BoolValue)
 		{
 			TeleportEntity(entity, NULL_VECTOR, NULL_VECTOR, vel);
-			CreateTimer(0.5, Timer_Decoy, entity);
+			CreateTimer(0.5, Timer_Decoy, ref);
 		}
 		else
 			SpawnEffect(entity);
@@ -1018,18 +1054,17 @@ public void FrameCallback(any entity)
 		if(g_ImplosionBounce.BoolValue)
 		{
 			TeleportEntity(entity, NULL_VECTOR, NULL_VECTOR, vel);
-			CreateTimer(0.5, Timer_Decoy, entity);
+			CreateTimer(0.5, Timer_Decoy, ref);
 		}
 		else
 			SpawnEffect(entity);
 	}
-	
-	SDKUnhook(entity, SDKHook_TouchPost, DecoyTouchPost);
 }
 
-public Action Timer_Decoy(Handle timer, any entity)
+public Action Timer_Decoy(Handle timer, any ref)
 {
-	SpawnEffect(entity);
+	int ent = EntRefToEntIndex(ref);
+	SpawnEffect(ent);
 }
 
 void SpawnEffect(int entity)
@@ -1065,11 +1100,12 @@ void SpawnEffect(int entity)
 	SetEntPropEnt(particle, Prop_Data, "m_hOwnerEntity", owner);
 	SetEntPropString(particle, Prop_Data, "m_iName", entityName);
 	AcceptEntityInput(entity, "Kill");
+	int ref = EntIndexToEntRef(particle);
 	if(StrEqual(entityName, "blackhole", false))
 	{
 		g_BlackholeParticleEffect.GetString(particleEffect, sizeof(particleEffect));
-		g_Blackholes.Push(particle);
-		volumeIndex = g_Blackholes.FindValue(particle);
+		g_hBlackholes.Push(ref);
+		volumeIndex = g_hBlackholes.FindValue(ref);
 		EmitAmbientSoundAny("misc/futuristicgrenades/blackhole.mp3", nadeOrigin, particle,_,_, BLACKHOLE_VOLUME);
 		interval = g_BlackholeDuration.FloatValue;
 		
@@ -1083,8 +1119,8 @@ void SpawnEffect(int entity)
 	else if(StrEqual(entityName, "forcefield", false))
 	{
 		g_ForcefieldParticleEffect.GetString(particleEffect, sizeof(particleEffect));
-		g_Forcefields.Push(particle);
-		volumeIndex = g_Forcefields.FindValue(particle);
+		g_hForcefields.Push(ref);
+		volumeIndex = g_hForcefields.FindValue(ref);
 		EmitAmbientSoundAny("ambient/energy/force_field_loop1.wav", nadeOrigin, particle,_,_, FORCEFIELD_VOLUME);
 		interval = g_ForcefieldDuration.FloatValue;
 		
@@ -1105,7 +1141,7 @@ void SpawnEffect(int entity)
 
 	DataPack pack;
 	CreateDataTimer(interval, Timer_Duration, pack);
-	pack.WriteCell(particle);
+	pack.WriteCell(ref);
 	pack.WriteCell(nadeOrigin[0]);
 	pack.WriteCell(nadeOrigin[1]);
 	pack.WriteCell(nadeOrigin[2]);
@@ -1303,22 +1339,22 @@ public Action Timer_Duration(Handle timer, DataPack pack)
 {
 	pack.Reset();
 	float nadeOrigin[3];
-	int particle = pack.ReadCell();
+	int ref = pack.ReadCell();
 	nadeOrigin[0] = pack.ReadCell();
 	nadeOrigin[1] = pack.ReadCell();
 	nadeOrigin[2] = pack.ReadCell();
 	int volumeIndex = pack.ReadCell();
-	
+	int particle = EntRefToEntIndex(ref);
 	if(!IsValidEntity(particle))
 	{
-		int blackholeIndex = g_Blackholes.FindValue(particle);
+		int blackholeIndex = g_hBlackholes.FindValue(ref);
 		if(blackholeIndex != -1)
-			g_Blackholes.Erase(blackholeIndex);
+			g_hBlackholes.Erase(blackholeIndex);
 		
 		
-		int forcefieldIndex = g_Forcefields.FindValue(particle);
+		int forcefieldIndex = g_hForcefields.FindValue(ref);
 		if(forcefieldIndex != -1)
-			g_Forcefields.Erase(forcefieldIndex);
+			g_hForcefields.Erase(forcefieldIndex);
 			
 		return Plugin_Handled;
 	}
@@ -1328,22 +1364,22 @@ public Action Timer_Duration(Handle timer, DataPack pack)
 	
 	if(StrEqual(particleName, "blackhole", false))
 	{
-		int index = g_Blackholes.FindValue(particle);
+		int index = g_hBlackholes.FindValue(ref);
 		if(index != -1)
-			g_Blackholes.Erase(index);
+			g_hBlackholes.Erase(index);
 	}
 	else if(StrEqual(particleName, "forcefield", false))
 	{
-		int index = g_Forcefields.FindValue(particle);
+		int index = g_hForcefields.FindValue(ref);
 		if(index != -1)
-			g_Forcefields.Erase(index);
+			g_hForcefields.Erase(index);
 	}
 	
 	AcceptEntityInput(particle, "Stop");
 	
 	DataPack packFade;
 	CreateDataTimer(0.2, Timer_Fade, packFade, TIMER_REPEAT);
-	packFade.WriteCell(particle);
+	packFade.WriteCell(ref);
 	packFade.WriteCell(nadeOrigin[0]);
 	packFade.WriteCell(nadeOrigin[1]);
 	packFade.WriteCell(nadeOrigin[2]);
@@ -1356,12 +1392,12 @@ public Action Timer_Fade(Handle timer, DataPack pack)
 {
 	pack.Reset();
 	float nadeOrigin[3];
-	int particle = pack.ReadCell();
+	int ref = pack.ReadCell();
 	nadeOrigin[0] = pack.ReadCell();
 	nadeOrigin[1] = pack.ReadCell();
 	nadeOrigin[2] = pack.ReadCell();
 	int volumeIndex = pack.ReadCell();
-	
+	int particle = EntRefToEntIndex(ref);
 	if(!IsValidEntity(particle))
 		KillTimer(timer);
 	
@@ -1420,14 +1456,15 @@ public Action Event_DecoyStarted(Event event, const char[] name, bool dontBroadc
 public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
+	
 	int ragdoll = GetEntPropEnt(client, Prop_Send, "m_hRagdoll");
 	
 	float clientPos[3], blackholePos[3];
 	
 	GetEntPropVector(ragdoll, Prop_Send, "m_vecOrigin", clientPos);
-	for (int i = 0; i < g_Blackholes.Length; i++)
+	for (int i = 0; i < g_hBlackholes.Length; i++)
 	{
-		GetEntPropVector(g_Blackholes.Get(i), Prop_Send, "m_vecOrigin", blackholePos);
+		GetEntPropVector(EntRefToEntIndex(g_hBlackholes.Get(i)), Prop_Send, "m_vecOrigin", blackholePos);
 		if(GetVectorDistance(clientPos, blackholePos) < 50.0)
 		{
 			AcceptEntityInput(ragdoll, "Kill");
@@ -1440,7 +1477,7 @@ public Action Event_PlayerSpawn(Event event, const char[] name, bool dontBroadca
 	if(!g_Enable.BoolValue)
 		return Plugin_Continue;
 		
-	if(!g_UseDecoyModel.BoolValue)
+	if(!g_UseGrenadeModel.BoolValue)
 		return Plugin_Continue; 
 		
 	int client = GetClientOfUserId(event.GetInt("userid"));
@@ -1484,7 +1521,7 @@ stock void AddMaterialsFromFolder(char path[PLATFORM_MAX_PATH])
 				char fullPath[PLATFORM_MAX_PATH];
 				
 				Format(fullPath, sizeof(fullPath), "%s%s", path, buffer);
-				if(g_UseDecoyModel.BoolValue)
+				if(g_UseGrenadeModel.BoolValue)
 					AddFileToDownloadsTable(fullPath);
 				
 				if(!IsModelPrecached(fullPath))
@@ -1499,14 +1536,13 @@ public void OnClientWeaponSwitchPost(int client, int weaponid)
 	if(!g_Enable.BoolValue)
 		return;
 		
-	SetEntPropEnt(weaponid, Prop_Send, "m_hOwnerEntity", client);
+	SetEntPropEnt(weaponid, Prop_Data, "m_hOwnerEntity", client);
 	char weapon[64];
 	GetEntityClassname(weaponid, weapon,sizeof(weapon));
-	if(StrEqual(weapon, "weapon_decoy"))
+	
+	if(StrEqual(weapon, "weapon_decoy", false))
 	{
-		PrintActiveSettings(client);
-		
-		if(!g_UseDecoyModel.BoolValue)
+		if(!g_UseGrenadeModel.BoolValue)
 			return;
 		
 		if(g_eMode[client] == DecoyMode_Normal)
@@ -1563,9 +1599,9 @@ public void OnClientDisconnect(int client)
 
 public void OnMapStart()
 {
-	g_Blackholes.Clear();
-	g_Forcefields.Clear();
-	if(g_UseDecoyModel.BoolValue)
+	g_hBlackholes.Clear();
+	g_hForcefields.Clear();
+	if(g_UseGrenadeModel.BoolValue)
 	{	
 		//VIEWMODEL
 		AddFileToDownloadsTable("models/weapons/futuristicgrenades/v_eq_decoy.dx90.vtx");
@@ -1618,8 +1654,9 @@ public void OnMapStart()
 	
 	//Precaching
 	g_iViewModelIndex = PrecacheModel("models/weapons/futuristicgrenades/v_eq_decoy.mdl");
-	g_iDefautlViewModelIndex = PrecacheModel("models/weapons/v_eq_decoy.mdl");
+	g_iDefaultViewModelIndex = PrecacheModel("models/weapons/v_eq_decoy.mdl");
 	g_iPathLaserModelIndex = PrecacheModel("materials/sprites/laserbeam.vmt");
+	
 	PrecacheModel("models/weapons/futuristicgrenades/w_eq_decoy.mdl");
 	
 	PrecacheGeneric("particles/futuristicgrenades/futuristicgrenades.pcf",true);
