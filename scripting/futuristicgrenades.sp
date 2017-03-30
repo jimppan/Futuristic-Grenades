@@ -3,7 +3,7 @@
 #define DEBUG
 
 #define PLUGIN_AUTHOR "Rachnus"
-#define PLUGIN_VERSION "1.3.1"
+#define PLUGIN_VERSION "1.3.2"
 
 #include <sourcemod>
 #include <sdktools>
@@ -78,12 +78,12 @@ ConVar g_BlackholeFlags;
 ConVar g_BlackholeParticleEffect;
 ConVar g_BlackholeMinimumDistance;
 ConVar g_BlackholeBounceVelocity;
-ConVar g_hBlackholeshakePlayer;
-ConVar g_hBlackholeshakeIntensity;
+ConVar g_BlackholeshakePlayer;
+ConVar g_BlackholeshakeIntensity;
 ConVar g_BlackholeFrequency;
 ConVar g_BlackholeForce;
 ConVar g_BlackholeDuration;
-ConVar g_hBlackholesetting;
+ConVar g_Blackholesetting;
 ConVar g_BlackholeDamage;
 ConVar g_BlackholeProps;
 ConVar g_BlackholeWeapons;
@@ -130,7 +130,7 @@ ConVar g_ImplosionBounceVelocity;
 
 public Plugin myinfo = 
 {
-	name = "Futuristic Grenades v1.3.1",
+	name = "Futuristic Grenades v1.3.2",
 	author = PLUGIN_AUTHOR,
 	description = "Adds more modes for decoys grenades",
 	version = PLUGIN_VERSION,
@@ -161,12 +161,12 @@ public void OnPluginStart()
 	g_BlackholeParticleEffect =		CreateConVar("fg_blackhole_particle_effect", "blackhole", "Name of the particle effect you want to use for blackholes", FCVAR_NOTIFY);
 	g_BlackholeMinimumDistance = 	CreateConVar("fg_blackhole_minimum_distance", "250", "Minimum distance to push player towards black hole", FCVAR_NOTIFY);
 	g_BlackholeBounceVelocity = 	CreateConVar("fg_blackhole_bounce_velocity", "300", "Up/Down velocity to push the grenade on bounce", FCVAR_NOTIFY);
-	g_hBlackholeshakePlayer = 		CreateConVar("fg_blackhole_shake_player", "1", "Shake the player once entering minimum distance", FCVAR_NOTIFY);
-	g_hBlackholeshakeIntensity =	CreateConVar("fg_blackhole_shake_intensity", "5.0", "Intensity of the shake", FCVAR_NOTIFY);
+	g_BlackholeshakePlayer = 		CreateConVar("fg_blackhole_shake_player", "1", "Shake the player once entering minimum distance", FCVAR_NOTIFY);
+	g_BlackholeshakeIntensity =		CreateConVar("fg_blackhole_shake_intensity", "5.0", "Intensity of the shake", FCVAR_NOTIFY);
 	g_BlackholeFrequency =			CreateConVar("fg_blackhole_shake_frequency", "0.7", "Frequency of the shake", FCVAR_NOTIFY);
 	g_BlackholeForce = 				CreateConVar("fg_blackhole_force", "350", "Force to fly at the black hole", FCVAR_NOTIFY); 
 	g_BlackholeDuration = 			CreateConVar("fg_blackhole_duration", "10", "Duration in seconds the blackhole lasts", FCVAR_NOTIFY);
-	g_hBlackholesetting = 			CreateConVar("fg_blackhole_setting", "1", "0 = Do nothing on entering blackhole origin, 1 = Do damage on entering the blackhole origin", FCVAR_NOTIFY);
+	g_Blackholesetting = 			CreateConVar("fg_blackhole_setting", "1", "0 = Do nothing on entering blackhole origin, 1 = Do damage on entering the blackhole origin", FCVAR_NOTIFY);
 	g_BlackholeDamage = 			CreateConVar("fg_blackhole_damage", "5", "Damage to do once entering blackhole origin", FCVAR_NOTIFY);
 	g_BlackholeProps = 				CreateConVar("fg_blackhole_props", "1", "Push props towards black hole (Client side props will not work)", FCVAR_NOTIFY);
 	g_BlackholeWeapons = 			CreateConVar("fg_blackhole_weapons", "1", "Push dropped weapons towards black hole", FCVAR_NOTIFY);
@@ -241,7 +241,6 @@ public Action Command_FriendlyFire(int client, int args)
 
 void PrintActiveSettings(int client)
 {
-	
 	char weaponname[32];
 	char mode[32];
 	char forcefieldmode[32];
@@ -633,16 +632,16 @@ void PushPlayersToBlackHole(int client, int iBlackhole)
 
 		if(distance < 20.0)
 		{
-			if(g_hBlackholeshakePlayer.BoolValue)
-				ShakeScreen(client, g_hBlackholeshakeIntensity.FloatValue, 0.1, g_BlackholeFrequency.FloatValue);
+			if(g_BlackholeshakePlayer.BoolValue)
+				ShakeScreen(client, g_BlackholeshakeIntensity.FloatValue, 0.1, g_BlackholeFrequency.FloatValue);
 						
-			if(g_hBlackholesetting.IntValue == 1)
+			if(g_Blackholesetting.IntValue == 1)
 				SDKHooks_TakeDamage(client, iBlackhole, iBlackhole, g_BlackholeDamage.FloatValue, DMG_DROWN, -1);
 		}
 		if(distance < g_BlackholeMinimumDistance.FloatValue)
 		{
-			if(g_hBlackholeshakePlayer.BoolValue)
-				ShakeScreen(client, g_hBlackholeshakeIntensity.FloatValue, 0.1, g_BlackholeFrequency.FloatValue);
+			if(g_BlackholeshakePlayer.BoolValue)
+				ShakeScreen(client, g_BlackholeshakeIntensity.FloatValue, 0.1, g_BlackholeFrequency.FloatValue);
 				
 			SetEntPropEnt(client, Prop_Data, "m_hGroundEntity", -1);
 
@@ -1399,7 +1398,7 @@ public Action Timer_Fade(Handle timer, DataPack pack)
 	int volumeIndex = pack.ReadCell();
 	int particle = EntRefToEntIndex(ref);
 	if(!IsValidEntity(particle))
-		KillTimer(timer);
+		return Plugin_Stop;
 	
 	char particleName[16];
 	GetEntPropString(particle, Prop_Data, "m_iName", particleName, sizeof(particleName));
@@ -1414,7 +1413,7 @@ public Action Timer_Fade(Handle timer, DataPack pack)
 			AcceptEntityInput(particle, "Kill");
 			StopSoundAny(particle, SNDCHAN_STATIC, "misc/futuristicgrenades/blackhole.mp3");
 			g_BlackholeVolume[volumeIndex] = BLACKHOLE_VOLUME;
-			KillTimer(timer);
+			return Plugin_Stop;
 		}	
 	}
 	else if(StrEqual(particleName, "forcefield", false))
@@ -1427,13 +1426,15 @@ public Action Timer_Fade(Handle timer, DataPack pack)
 			AcceptEntityInput(particle, "Kill");
 			StopSoundAny(particle, SNDCHAN_STATIC, "ambient/energy/force_field_loop1.wav");
 			g_ForcefieldVolume[volumeIndex] = FORCEFIELD_VOLUME;
-			KillTimer(timer);
+			return Plugin_Stop;
 		}	
 	}
 	else
 	{
-		KillTimer(timer);
+		return Plugin_Stop;
 	}
+	
+	return Plugin_Continue;
 }
 	
 public bool TraceFilterNotSelf(int entityhit, int mask, any entity)
