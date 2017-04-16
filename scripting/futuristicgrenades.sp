@@ -893,6 +893,9 @@ public Action DecoyTouchPost(int entity, int other)
 {
 	if(other == 0)
 	{
+		if(!IsValidEntity(entity))
+			return;
+			
 		char name[16];
 		GetEntPropString(entity, Prop_Data, "m_iName", name, sizeof(name));
 		int owner = GetEntPropEnt(entity, Prop_Data, "m_hOwnerEntity");
@@ -1015,6 +1018,9 @@ public Action DecoyTouchPost(int entity, int other)
 
 public void FrameCallback(any entity)
 {
+	if(!IsValidEntity(entity))
+		return;
+	
 	SDKUnhook(entity, SDKHook_TouchPost, DecoyTouchPost);
 	
 	char entityName[16];
@@ -1068,6 +1074,9 @@ public Action Timer_Decoy(Handle timer, any ref)
 
 void SpawnEffect(int entity)
 {
+	if(!IsValidEntity(entity))
+		return;
+		
 	char entityName[16];
 	char particleEffect[PLATFORM_MAX_PATH];
 	GetEntPropString(entity, Prop_Data, "m_iName", entityName, sizeof(entityName));
