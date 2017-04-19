@@ -151,7 +151,12 @@ public SharedPlugin __pl_futuristicgrenades  =
 #if !defined REQUIRE_PLUGIN
 public __pl_futuristicgrenades_SetNTVOptional()
 {	
-	MarkNativeAsOptional("LGJailbreak_WardenExists");
-
+	MarkNativeAsOptional("FGrenades_IsFriendlyFire");
+	MarkNativeAsOptional("FGrenades_GetMode");
+	MarkNativeAsOptional("FGrenades_GetForcefieldMode");
+	MarkNativeAsOptional("FGrenades_GetForceExplosionMode");
+	MarkNativeAsOptional("FGrenades_GetForceImplosionMode");
+	MarkNativeAsOptional("FGrenades_GetAmountBlackholes");
+	MarkNativeAsOptional("FGrenades_GetAmountForcefields");
 }
 #endif
