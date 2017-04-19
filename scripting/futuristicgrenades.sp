@@ -3,7 +3,7 @@
 #define DEBUG
 
 #define PLUGIN_AUTHOR "Rachnus"
-#define PLUGIN_VERSION "1.3.3"
+#define PLUGIN_VERSION "1.3.4"
 
 #include <sourcemod>
 #include <sdktools>
@@ -11,44 +11,13 @@
 #include <sdkhooks>
 #include <emitsoundany>
 #include <clientprefs>
+#include <futuristicgrenades>
 
 #pragma newdecls required
 #define BLACKHOLE_VOLUME 5.0
 #define FORCEFIELD_VOLUME 5.0
 #define EXPLOSION_VOLUME 5.0
 #define IMPLOSION_VOLUME 5.0
-
-enum DecoyMode
-{
-	DecoyMode_Normal = 0,
-	DecoyMode_Blackhole,
-	DecoyMode_Forcefield,
-	DecoyMode_ForceExplosion,
-	DecoyMode_ForceImplosion,
-	DecoyMode_Max
-}
-
-enum ForceFieldMode
-{
-	ForcefieldMode_Normal = 0,
-	ForcefieldMode_Self,
-	ForcefieldMode_Max
-}
-
-enum ForceExplosionMode
-{
-	ForceExplosionMode_Ground = 0,
-	ForceExplosionMode_World,
-	ForceExplosionMode_Max
-}
-
-enum ForceImplosionMode
-{
-	ForceImplosionMode_Ground = 0,
-	ForceImplosionMode_World,
-	ForceImplosionMode_Max
-}
-
 
 EngineVersion g_Game;
 
@@ -127,6 +96,14 @@ ConVar g_ImplosionFlashbangs;
 ConVar g_ImplosionSmokes;
 ConVar g_ImplosionBounce;
 ConVar g_ImplosionBounceVelocity;
+
+//FORWARDS
+Handle g_hOnThrowNade;
+Handle g_hOnBlackHoleDeath;
+Handle g_hOnGrenadeExpire;
+Handle g_hOnGrenadePreStart;
+Handle g_hOnGrenadeStart;
+Handle g_hOnSwitchMode;
 
 public Plugin myinfo = 
 {
@@ -213,6 +190,13 @@ public void OnPluginStart()
 	g_ImplosionBounce =				CreateConVar("fg_implosion_bounce", "0", "Bounce the grenade before activating", FCVAR_NOTIFY);
 	g_ImplosionBounceVelocity =		CreateConVar("fg_implosion_bounce_velocity", "300", "Up/Down velocity to push the grenade on bounce (If fg_implosion_bounce enabled)", FCVAR_NOTIFY);
 	
+	g_hOnThrowNade =				CreateGlobalForward("FGrenades_OnThrowGrenade", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
+	g_hOnBlackHoleDeath = 			CreateGlobalForward("FGrenades_OnBlackHoleDeath", ET_Ignore, Param_Cell, Param_Cell);
+	g_hOnGrenadeExpire = 			CreateGlobalForward("FGrenades_OnGrenadeExpire", ET_Ignore, Param_Array, Param_Cell);
+	g_hOnGrenadePreStart = 			CreateGlobalForward("FGrenades_OnGrenadePreStart", ET_Ignore, Param_Cell, Param_Cell);
+	g_hOnGrenadeStart = 			CreateGlobalForward("FGrenades_OnGrenadeStart", ET_Ignore, Param_Cell, Param_CellByRef, Param_Array, Param_Cell, Param_Cell);
+	g_hOnSwitchMode =				CreateGlobalForward("FGrenades_OnSwitchMode", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell);
+
 	HookConVarChange(g_UseGrenadeModel, ConVar_DecoyModel);
 	HookConVarChange(g_FriendlyFire, ConVar_FriendlyFire);
 	
@@ -233,6 +217,71 @@ public void OnPluginStart()
 	AutoExecConfig(true, "futuristicgrenades");
 }
 
+public APLRes AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int err_max)
+{
+	CreateNative("FGrenades_IsFriendlyFire", Native_IsFriendlyFire);
+	CreateNative("FGrenades_GetMode", Native_GetMode);
+	CreateNative("FGrenades_GetForcefieldMode", Native_GetForcefieldMode);
+	CreateNative("FGrenades_GetForceExplosionMode", Native_GetForceExplosionMode);
+	CreateNative("FGrenades_GetForceImplosionMode", Native_GetForceImplosionMode);
+	CreateNative("FGrenades_GetAmountBlackholes", Native_GetAmountBlackholes);
+	CreateNative("FGrenades_GetAmountForcefields", Native_GetAmountForcefields);
+
+	RegPluginLibrary("futuristicgrenades");
+
+	return APLRes_Success;
+}
+
+public int Native_IsFriendlyFire(Handle plugin, int numParams)
+{
+	return g_FriendlyFire.IntValue;
+}
+
+public int Native_GetMode(Handle plugin, int numParams)
+{
+	int client = GetNativeCell(1);
+	if(!client)
+		return -1;
+		
+	return view_as<int>(g_eMode[client]);
+}
+
+public int Native_GetForcefieldMode(Handle plugin, int numParams)
+{
+	int client = GetNativeCell(1);
+	if(!client)
+		return -1;
+		
+	return view_as<int>(g_eForcefieldMode[client]);
+}
+
+public int Native_GetForceExplosionMode(Handle plugin, int numParams)
+{
+	int client = GetNativeCell(1);
+	if(!client && !IsClientInGame(client))
+		return -1;
+		
+	return view_as<int>(g_eForceExplosionMode[client]);
+}
+
+public int Native_GetForceImplosionMode(Handle plugin, int numParams)
+{
+	int client = GetNativeCell(1);
+	if(!client && !IsClientInGame(client))
+		return -1;
+		
+	return view_as<int>(g_eForceImplosionMode[client]);
+}
+
+public int Native_GetAmountBlackholes(Handle plugin, int numParams)
+{
+	return g_hBlackholes.Length;
+}
+
+public int Native_GetAmountForcefields(Handle plugin, int numParams)
+{
+	return g_hForcefields.Length;
+}
 
 public Action Command_FriendlyFire(int client, int args)
 {
@@ -346,11 +395,11 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		GetClientWeapon(client, weaponName, sizeof(weaponName));
 		if(StrEqual(weaponName, "weapon_decoy", false))
 		{
+			DecoyMode mode = g_eMode[client];
 			if(g_eMode[client] < DecoyMode_Max - view_as<DecoyMode>(1))
 			{
 				char flags[32];
 				int flagbits;
-				
 				while(g_eMode[client]++ < DecoyMode_Max)
 				{
 					g_BlackholeFlags.GetString(flags, sizeof(flags));
@@ -380,23 +429,32 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			if(g_eMode[client] >= DecoyMode_Max)
 				g_eMode[client] = DecoyMode_Normal;
 			
+			
 			PrintActiveSettings(client);
 			EmitSoundToClientAny(client, "buttons/button15.wav");
-
+			int weaponEnt = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon");
 			if(g_UseGrenadeModel.BoolValue)
 			{
 				if(g_eMode[client] != DecoyMode_Normal)
 				{
-					int weaponEnt = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon"); 
 					SetEntProp(weaponEnt, Prop_Send, "m_nModelIndex", 0); 
 					SetEntProp(g_PVMid[client], Prop_Send, "m_nModelIndex", g_iViewModelIndex);
 				}
 				else
 				{
-					int weaponEnt = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon"); 
 					SetEntProp(weaponEnt, Prop_Send, "m_nModelIndex", 0); 
 					SetEntProp(g_PVMid[client], Prop_Send, "m_nModelIndex", g_iDefaultViewModelIndex);
 				}
+			}
+			
+			if(g_eMode[client] != mode)
+			{
+				Call_StartForward(g_hOnSwitchMode);
+				Call_PushCell(client);
+				Call_PushCell(mode);
+				Call_PushCell(g_eMode[client]);
+				Call_PushCell(weaponEnt);
+				Call_Finish();
 			}
 		}
 		g_bSwitchGrenade[client] = true;
@@ -862,7 +920,11 @@ public void OnEntityCreated(int entity, const char[] classname)
 public Action DecoySpawned(int entity)
 {
 	int owner = GetEntPropEnt(entity, Prop_Data, "m_hOwnerEntity");
-	
+	Call_StartForward(g_hOnThrowNade);
+	Call_PushCell(owner);
+	Call_PushCell(entity);
+	Call_PushCell(g_eMode[owner]);
+	Call_Finish();
 	if(owner > 0 && owner <= MaxClients)
 	{
 		if(g_eMode[owner] == DecoyMode_Normal)
@@ -1030,12 +1092,20 @@ public void FrameCallback(any entity)
 	
 	if(StrEqual(entityName, "blackhole", false))
 	{
+		Call_StartForward(g_hOnGrenadePreStart);
+		Call_PushCell(entity);
+		Call_PushCell(DecoyMode_Blackhole);
+		Call_Finish();
 		vel[2] = g_BlackholeBounceVelocity.FloatValue;
 		TeleportEntity(entity, NULL_VECTOR, NULL_VECTOR, vel);
 		CreateTimer(0.5, Timer_Decoy, ref);
 	}
 	else if(StrEqual(entityName, "forcefield", false))
 	{
+		Call_StartForward(g_hOnGrenadePreStart);
+		Call_PushCell(entity);
+		Call_PushCell(DecoyMode_Forcefield);
+		Call_Finish();
 		vel[2] = g_ForcefieldBounceVelocity.FloatValue;
 		TeleportEntity(entity, NULL_VECTOR, NULL_VECTOR, vel);
 		CreateTimer(0.5, Timer_Decoy, ref);
@@ -1046,6 +1116,10 @@ public void FrameCallback(any entity)
 		
 		if(g_ExplosionBounce.BoolValue)
 		{
+			Call_StartForward(g_hOnGrenadePreStart);
+			Call_PushCell(entity);
+			Call_PushCell(DecoyMode_ForceExplosion);
+			Call_Finish();
 			TeleportEntity(entity, NULL_VECTOR, NULL_VECTOR, vel);
 			CreateTimer(0.5, Timer_Decoy, ref);
 		}
@@ -1058,6 +1132,10 @@ public void FrameCallback(any entity)
 		
 		if(g_ImplosionBounce.BoolValue)
 		{
+			Call_StartForward(g_hOnGrenadePreStart);
+			Call_PushCell(entity);
+			Call_PushCell(DecoyMode_ForceImplosion);
+			Call_Finish();
 			TeleportEntity(entity, NULL_VECTOR, NULL_VECTOR, vel);
 			CreateTimer(0.5, Timer_Decoy, ref);
 		}
@@ -1112,6 +1190,16 @@ void SpawnEffect(int entity)
 	if(StrEqual(entityName, "blackhole", false))
 	{
 		g_BlackholeParticleEffect.GetString(particleEffect, sizeof(particleEffect));
+		DispatchKeyValue(particle , "effect_name", particleEffect);
+		
+		Call_StartForward(g_hOnGrenadeStart);
+		Call_PushCell(owner);
+		Call_PushCellRef(particle);
+		Call_PushArray(nadeOrigin, sizeof(nadeOrigin));
+		Call_PushCell(DecoyMode_Blackhole);
+		Call_PushCell(g_BlackholeDuration.FloatValue);
+		Call_Finish();
+
 		g_hBlackholes.Push(ref);
 		volumeIndex = g_hBlackholes.FindValue(ref);
 		EmitAmbientSoundAny("misc/futuristicgrenades/blackhole.mp3", nadeOrigin, particle,_,_, BLACKHOLE_VOLUME);
@@ -1127,6 +1215,16 @@ void SpawnEffect(int entity)
 	else if(StrEqual(entityName, "forcefield", false))
 	{
 		g_ForcefieldParticleEffect.GetString(particleEffect, sizeof(particleEffect));
+		DispatchKeyValue(particle , "effect_name", particleEffect);
+		
+		Call_StartForward(g_hOnGrenadeStart);
+		Call_PushCell(owner);
+		Call_PushCellRef(particle);
+		Call_PushArray(nadeOrigin, sizeof(nadeOrigin));
+		Call_PushCell(DecoyMode_Forcefield);
+		Call_PushCell(g_ForcefieldDuration.FloatValue);
+		Call_Finish();
+		
 		g_hForcefields.Push(ref);
 		volumeIndex = g_hForcefields.FindValue(ref);
 		EmitAmbientSoundAny("ambient/energy/force_field_loop1.wav", nadeOrigin, particle,_,_, FORCEFIELD_VOLUME);
@@ -1141,7 +1239,6 @@ void SpawnEffect(int entity)
 	}
 
 	DispatchKeyValue(particle , "start_active", "0");
-	DispatchKeyValue(particle , "effect_name", particleEffect);
 	DispatchSpawn(particle);
 	TeleportEntity(particle, nadeOrigin, NULL_VECTOR,NULL_VECTOR);
 	ActivateEntity(particle);
@@ -1167,13 +1264,22 @@ void SpawnExplosion(int entity)
 	char particleEffect[PLATFORM_MAX_PATH];
 	float nadeOrigin[3];
 	GetEntPropVector(entity, Prop_Send, "m_vecOrigin", nadeOrigin);
+	
 	AcceptEntityInput(entity, "Kill");
 	
 	int particle = CreateEntityByName("info_particle_system");
 	g_ExplosionParticleEffect.GetString(particleEffect, sizeof(particleEffect));
+	DispatchKeyValue(particle , "effect_name", particleEffect);
+	
+	Call_StartForward(g_hOnGrenadeStart);
+	Call_PushCell(owner);
+	Call_PushCellRef(particle);
+	Call_PushArray(nadeOrigin, sizeof(nadeOrigin));
+	Call_PushCell(DecoyMode_ForceExplosion);
+	Call_PushCell(0);
+	Call_Finish();
 	
 	DispatchKeyValue(particle , "start_active", "0");
-	DispatchKeyValue(particle , "effect_name", particleEffect);
 	DispatchSpawn(particle);
 	TeleportEntity(particle, nadeOrigin, NULL_VECTOR,NULL_VECTOR);
 	ActivateEntity(particle);
@@ -1272,9 +1378,18 @@ void SpawnImplosion(int entity)
 	
 	int particle = CreateEntityByName("info_particle_system");
 	g_ImplosionParticleEffect.GetString(particleEffect, sizeof(particleEffect));
+	DispatchKeyValue(particle , "effect_name", particleEffect);
+	
+	Call_StartForward(g_hOnGrenadeStart);
+	Call_PushCell(owner);
+	Call_PushCellRef(particle);
+	Call_PushArray(nadeOrigin, sizeof(nadeOrigin));
+	Call_PushCell(DecoyMode_ForceImplosion);
+	Call_PushCell(0);
+	Call_Finish();
 	
 	DispatchKeyValue(particle , "start_active", "0");
-	DispatchKeyValue(particle , "effect_name", particleEffect);
+	
 	DispatchSpawn(particle);
 	TeleportEntity(particle, nadeOrigin, NULL_VECTOR,NULL_VECTOR);
 	ActivateEntity(particle);
@@ -1370,18 +1485,26 @@ public Action Timer_Duration(Handle timer, DataPack pack)
 	char particleName[16];
 	GetEntPropString(particle, Prop_Data, "m_iName", particleName, sizeof(particleName));
 	
+	Call_StartForward(g_hOnGrenadeExpire);
+	Call_PushArray(nadeOrigin, sizeof(nadeOrigin));
+	
 	if(StrEqual(particleName, "blackhole", false))
 	{
+		Call_PushCell(DecoyMode_Blackhole);
 		int index = g_hBlackholes.FindValue(ref);
 		if(index != -1)
 			g_hBlackholes.Erase(index);
 	}
 	else if(StrEqual(particleName, "forcefield", false))
 	{
+		Call_PushCell(DecoyMode_Forcefield);
 		int index = g_hForcefields.FindValue(ref);
 		if(index != -1)
 			g_hForcefields.Erase(index);
 	}
+	else
+		Call_PushCell(DecoyMode_Normal);
+	Call_Finish();
 	
 	AcceptEntityInput(particle, "Stop");
 	
@@ -1477,6 +1600,10 @@ public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadca
 		GetEntPropVector(EntRefToEntIndex(g_hBlackholes.Get(i)), Prop_Send, "m_vecOrigin", blackholePos);
 		if(GetVectorDistance(clientPos, blackholePos) < 50.0)
 		{
+			Call_StartForward(g_hOnBlackHoleDeath);
+			Call_PushCell(client);
+			Call_PushCell(ragdoll);
+			Call_Finish();
 			AcceptEntityInput(ragdoll, "Kill");
 		}
 	}
