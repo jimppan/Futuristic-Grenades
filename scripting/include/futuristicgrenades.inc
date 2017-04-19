@@ -77,7 +77,7 @@ native ForceImplosionMode FGrenades_GetForceImplosionMode(int client);
 native int FGrenades_GetAmountBlackholes();
 
 /**
- * Returns the amount of active forcefields
+ * Returns the amount of active force fields
  *
  * @return  int					amount of active force fields
  */
@@ -133,9 +133,9 @@ forward void FGrenades_OnGrenadeStart(int owner, int &particle, float pos[3], De
  * @param previousmode previous grenade mode
  * @param newmode current grenade mode
  * @param weapon active weapon entity index
- * @noreturn
+ * @return Plugin_Handled to prevent from switching modes, Plugin_Continue otherwise
  */
-forward void FGrenades_OnSwitchMode(int client, DecoyMode previousmode, DecoyMode newmode, int weapon);
+forward Action FGrenades_OnSwitchMode(int client, DecoyMode previousmode, DecoyMode &newmode, int weapon);
 
 public SharedPlugin __pl_futuristicgrenades  =
 {

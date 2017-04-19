@@ -195,7 +195,7 @@ public void OnPluginStart()
 	g_hOnGrenadeExpire = 			CreateGlobalForward("FGrenades_OnGrenadeExpire", ET_Ignore, Param_Array, Param_Cell);
 	g_hOnGrenadePreStart = 			CreateGlobalForward("FGrenades_OnGrenadePreStart", ET_Ignore, Param_Cell, Param_Cell);
 	g_hOnGrenadeStart = 			CreateGlobalForward("FGrenades_OnGrenadeStart", ET_Ignore, Param_Cell, Param_CellByRef, Param_Array, Param_Cell, Param_Cell);
-	g_hOnSwitchMode =				CreateGlobalForward("FGrenades_OnSwitchMode", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell);
+	g_hOnSwitchMode =				CreateGlobalForward("FGrenades_OnSwitchMode", ET_Event, Param_Cell, Param_Cell, Param_CellByRef, Param_Cell);
 
 	HookConVarChange(g_UseGrenadeModel, ConVar_DecoyModel);
 	HookConVarChange(g_FriendlyFire, ConVar_FriendlyFire);
@@ -428,33 +428,42 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			
 			if(g_eMode[client] >= DecoyMode_Max)
 				g_eMode[client] = DecoyMode_Normal;
-			
-			
-			PrintActiveSettings(client);
-			EmitSoundToClientAny(client, "buttons/button15.wav");
+				
 			int weaponEnt = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon");
-			if(g_UseGrenadeModel.BoolValue)
-			{
-				if(g_eMode[client] != DecoyMode_Normal)
-				{
-					SetEntProp(weaponEnt, Prop_Send, "m_nModelIndex", 0); 
-					SetEntProp(g_PVMid[client], Prop_Send, "m_nModelIndex", g_iViewModelIndex);
-				}
-				else
-				{
-					SetEntProp(weaponEnt, Prop_Send, "m_nModelIndex", 0); 
-					SetEntProp(g_PVMid[client], Prop_Send, "m_nModelIndex", g_iDefaultViewModelIndex);
-				}
-			}
 			
+			Action result = Plugin_Continue;
 			if(g_eMode[client] != mode)
 			{
 				Call_StartForward(g_hOnSwitchMode);
 				Call_PushCell(client);
 				Call_PushCell(mode);
-				Call_PushCell(g_eMode[client]);
+				Call_PushCellRef(g_eMode[client]);
 				Call_PushCell(weaponEnt);
-				Call_Finish();
+				Call_Finish(result);
+				
+				if(result == Plugin_Handled)
+				{
+					g_eMode[client] = mode;
+				}
+				else if(result == Plugin_Continue)
+				{
+					PrintActiveSettings(client);
+					EmitSoundToClientAny(client, "buttons/button15.wav");
+					
+					if(g_UseGrenadeModel.BoolValue)
+					{
+						if(g_eMode[client] != DecoyMode_Normal)
+						{
+							SetEntProp(weaponEnt, Prop_Send, "m_nModelIndex", 0); 
+							SetEntProp(g_PVMid[client], Prop_Send, "m_nModelIndex", g_iViewModelIndex);
+						}
+						else
+						{
+							SetEntProp(weaponEnt, Prop_Send, "m_nModelIndex", 0); 
+							SetEntProp(g_PVMid[client], Prop_Send, "m_nModelIndex", g_iDefaultViewModelIndex);
+						}
+					}
+				}
 			}
 		}
 		g_bSwitchGrenade[client] = true;
