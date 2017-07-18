@@ -226,7 +226,9 @@ public APLRes AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int err_
 	CreateNative("FGrenades_GetForceImplosionMode", Native_GetForceImplosionMode);
 	CreateNative("FGrenades_GetAmountBlackholes", Native_GetAmountBlackholes);
 	CreateNative("FGrenades_GetAmountForcefields", Native_GetAmountForcefields);
-
+	CreateNative("FGranades_SwitchMode", Native_ChangeMode);
+	
+	
 	RegPluginLibrary("futuristicgrenades");
 
 	return APLRes_Success;
@@ -282,6 +284,34 @@ public int Native_GetAmountForcefields(Handle plugin, int numParams)
 {
 	return g_hForcefields.Length;
 }
+
+public int Native_ChangeMode(Handle plugin, int numParams)
+{
+	int client = GetNativeCell(1);
+	
+	if (client < 1 || client > MaxClients)
+	{
+		return ThrowNativeError(SP_ERROR_NATIVE, "Invalid client index (%d)", client);
+	}
+	if (!IsClientConnected(client))
+	{
+		return ThrowNativeError(SP_ERROR_NATIVE, "Client %d is not connected", client);
+	}
+	
+	int iDecoyMode = GetNativeCell(2);
+	int iForceFieldMode = GetNativeCell(3);
+	int iExplosionMode = GetNativeCell(4);
+	int iImplosionMode = GetNativeCell(5);
+	
+	g_eMode[client] = view_as<DecoyMode>(iDecoyMode);
+	g_eForcefieldMode[client] = view_as<ForceFieldMode>(iForceFieldMode);
+	g_eForceExplosionMode[client] = view_as<ForceExplosionMode>(iExplosionMode);
+	g_eForceImplosionMode[client] = view_as<ForceImplosionMode>(iImplosionMode);
+	
+	
+	return 1;
+}
+
 
 public Action Command_FriendlyFire(int client, int args)
 {
