@@ -226,7 +226,7 @@ public APLRes AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int err_
 	CreateNative("FGrenades_GetForceImplosionMode", Native_GetForceImplosionMode);
 	CreateNative("FGrenades_GetAmountBlackholes", Native_GetAmountBlackholes);
 	CreateNative("FGrenades_GetAmountForcefields", Native_GetAmountForcefields);
-	CreateNative("FGranades_SwitchMode", Native_ChangeMode);
+	CreateNative("FGranades_SwitchMode", Native_SwitchMode);
 	
 	
 	RegPluginLibrary("futuristicgrenades");
@@ -285,18 +285,15 @@ public int Native_GetAmountForcefields(Handle plugin, int numParams)
 	return g_hForcefields.Length;
 }
 
-public int Native_ChangeMode(Handle plugin, int numParams)
+public int Native_SwitchMode(Handle plugin, int numParams)
 {
 	int client = GetNativeCell(1);
 	
 	if (client < 1 || client > MaxClients)
-	{
 		return ThrowNativeError(SP_ERROR_NATIVE, "Invalid client index (%d)", client);
-	}
-	if (!IsClientConnected(client))
-	{
-		return ThrowNativeError(SP_ERROR_NATIVE, "Client %d is not connected", client);
-	}
+
+	if (!IsClientInGame(client))
+		return ThrowNativeError(SP_ERROR_NATIVE, "Client %d is not in game", client);
 	
 	int iDecoyMode = GetNativeCell(2);
 	int iForceFieldMode = GetNativeCell(3);
@@ -307,7 +304,16 @@ public int Native_ChangeMode(Handle plugin, int numParams)
 	g_eForcefieldMode[client] = view_as<ForceFieldMode>(iForceFieldMode);
 	g_eForceExplosionMode[client] = view_as<ForceExplosionMode>(iExplosionMode);
 	g_eForceImplosionMode[client] = view_as<ForceImplosionMode>(iImplosionMode);
+
+	g_bSwitchMode[client] = true;
 	
+	char weaponName[32];
+	GetClientWeapon(client, weaponName, sizeof(weaponName));
+	if(StrEqual(weaponName, "weapon_decoy", false))
+	{
+		PrintActiveSettings(client);
+		EmitSoundToClientAny(client, "buttons/button15.wav");
+	}
 	
 	return 1;
 }
