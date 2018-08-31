@@ -226,7 +226,7 @@ public APLRes AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int err_
 	CreateNative("FGrenades_GetForceImplosionMode", Native_GetForceImplosionMode);
 	CreateNative("FGrenades_GetAmountBlackholes", Native_GetAmountBlackholes);
 	CreateNative("FGrenades_GetAmountForcefields", Native_GetAmountForcefields);
-	CreateNative("FGranades_SwitchMode", Native_SwitchMode);
+	CreateNative("FGrenades_SwitchMode", Native_SwitchMode);
 	
 	
 	RegPluginLibrary("futuristicgrenades");

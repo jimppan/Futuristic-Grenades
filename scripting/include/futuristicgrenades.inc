@@ -146,7 +146,7 @@ forward Action FGrenades_OnSwitchMode(int client, DecoyMode previousmode, DecoyM
  * @param newForceExplosionMode New mode of ForceExplosion decoy
  * @param newForceImplosionMode New mode of ForceImplosion decoy
  */
-native void FGranades_SwitchMode(int client, DecoyMode newDecoyMode, ForceFieldMode newForceFieldMode = ForcefieldMode_Normal, ForceExplosionMode newForceExplosionMode = ForceExplosionMode_Ground, ForceImplosionMode newForceImplosionMode = ForceImplosionMode_Ground);
+native void FGrenades_SwitchMode(int client, DecoyMode newDecoyMode, ForceFieldMode newForceFieldMode = ForcefieldMode_Normal, ForceExplosionMode newForceExplosionMode = ForceExplosionMode_Ground, ForceImplosionMode newForceImplosionMode = ForceImplosionMode_Ground);
 
 public SharedPlugin __pl_futuristicgrenades  =
 {
