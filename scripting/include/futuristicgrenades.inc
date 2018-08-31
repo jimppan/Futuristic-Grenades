@@ -169,6 +169,6 @@ public void __pl_futuristicgrenades_SetNTVOptional()
 	MarkNativeAsOptional("FGrenades_GetForceImplosionMode");
 	MarkNativeAsOptional("FGrenades_GetAmountBlackholes");
 	MarkNativeAsOptional("FGrenades_GetAmountForcefields");
-	MarkNativeAsOptional("FGranades_SwitchMode");
+	MarkNativeAsOptional("FGrenades_SwitchMode");
 }
 #endif
