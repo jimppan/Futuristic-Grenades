@@ -562,10 +562,19 @@ void UpdateBlackHoles()
 							
 						int ownerteam = GetClientTeam(owner);
 						if((ownerteam != GetClientTeam(client)) || client == owner)
-							PushPlayersToBlackHole(client, iBlackhole);
+							PushPlayersToBlackHole(client, owner, iBlackhole);
 					}
 					else
-						PushPlayersToBlackHole(client, iBlackhole);
+					{
+						int owner = GetEntPropEnt(iBlackhole, Prop_Data, "m_hOwnerEntity");
+
+						if(owner < 1 || owner > MaxClients || !IsClientInGame(owner))
+						{
+							owner = -1;
+						}
+
+						PushPlayersToBlackHole(client, owner, iBlackhole);
+					}
 				}
 			}
 		
@@ -687,7 +696,7 @@ void PushPlayersAwayFromForceField(int client, int iForcefield)
 	}
 }
 
-void PushPlayersToBlackHole(int client, int iBlackhole)
+void PushPlayersToBlackHole(int client, int owner, int iBlackhole)
 {
 	if(IsValidEntity(iBlackhole))
 	{
@@ -703,7 +712,14 @@ void PushPlayersToBlackHole(int client, int iBlackhole)
 				ShakeScreen(client, g_BlackholeshakeIntensity.FloatValue, 0.1, g_BlackholeFrequency.FloatValue);
 						
 			if(g_Blackholesetting.IntValue == 1)
-				SDKHooks_TakeDamage(client, iBlackhole, iBlackhole, g_BlackholeDamage.FloatValue, DMG_DROWN, -1);
+			{
+				if (owner == -1 || !IsClientInGame(owner))
+				{
+					owner = iBlackhole;
+				}
+
+				SDKHooks_TakeDamage(client, iBlackhole, owner, g_BlackholeDamage.FloatValue, DMG_DROWN, -1);
+			}
 		}
 		if(distance < g_BlackholeMinimumDistance.FloatValue)
 		{
