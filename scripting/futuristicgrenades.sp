@@ -1,10 +1,3 @@
-#pragma semicolon 1
-
-#define DEBUG
-
-#define PLUGIN_AUTHOR "Rachnus"
-#define PLUGIN_VERSION "1.3.4"
-
 #include <sourcemod>
 #include <sdktools>
 #include <cstrike>
@@ -14,6 +7,13 @@
 #include <futuristicgrenades>
 
 #pragma newdecls required
+#pragma semicolon 1
+
+#define DEBUG
+
+#define PLUGIN_AUTHOR "Rachnus"
+#define PLUGIN_VERSION "1.3.4"
+
 #define BLACKHOLE_VOLUME 5.0
 #define FORCEFIELD_VOLUME 5.0
 #define EXPLOSION_VOLUME 5.0
